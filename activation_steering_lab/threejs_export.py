@@ -65,13 +65,18 @@ class ThreeJSExporter:
         model_name = metadata.get("model_name", "unknown")
         prompt = metadata.get("prompt", "")
 
-        # Get dimensions
+        # Get dimensions - use the minimum sequence length across all layers
         sample_tensor = normal_acts[layer_indices[0]]
         batch_size, seq_len, hidden_size = sample_tensor.shape
+        
+        # Find minimum sequence length across all layers (they might differ)
+        min_seq_len = seq_len
+        for layer_idx in layer_indices:
+            layer_seq_len = normal_acts[layer_idx].shape[1]
+            min_seq_len = min(min_seq_len, layer_seq_len)
+        
+        seq_len = min_seq_len  # Use the minimum to avoid index errors
         num_layers = len(layer_indices)
-
-        # Use last token for activation analysis (where steering has max impact)
-        token_idx = seq_len - 1
 
         # Initialize data structures
         normal_activations_data = {}
@@ -86,6 +91,15 @@ class ThreeJSExporter:
         print(f"Exporting activations: {num_layers} layers, {hidden_size} dims -> {num_regions} regions")
 
         for layer_idx in layer_indices:
+            # Get actual sequence length for this layer (they may differ)
+            layer_seq_len = normal_acts[layer_idx].shape[1]
+            token_idx = layer_seq_len - 1  # Use last token of this layer
+            
+            # Safety check
+            if token_idx < 0 or token_idx >= layer_seq_len:
+                print(f"Warning: Invalid token_idx {token_idx} for layer {layer_idx} with seq_len {layer_seq_len}")
+                token_idx = 0
+            
             # Extract last token activations
             normal_vec = normal_acts[layer_idx][0, token_idx, :].detach().cpu().numpy()
             steered_vec = steered_acts[layer_idx][0, token_idx, :].detach().cpu().numpy()
@@ -129,8 +143,15 @@ class ThreeJSExporter:
                 if layer_idx == injection_layer:
                     layer_correlations[str(layer_idx)] = 1.0
                 else:
-                    layer_vec = steered_acts[layer_idx][0, token_idx, :].detach().cpu().numpy()
-                    layer_vec = layer_vec - normal_acts[layer_idx][0, token_idx, :].detach().cpu().numpy()
+                    # Get actual sequence length for this layer
+                    layer_seq_len = steered_acts[layer_idx].shape[1]
+                    layer_token_idx = layer_seq_len - 1
+                    
+                    if layer_token_idx < 0 or layer_token_idx >= layer_seq_len:
+                        layer_token_idx = 0
+                    
+                    layer_vec = steered_acts[layer_idx][0, layer_token_idx, :].detach().cpu().numpy()
+                    layer_vec = layer_vec - normal_acts[layer_idx][0, layer_token_idx, :].detach().cpu().numpy()
                     layer_vec = np.nan_to_num(layer_vec, nan=0.0, posinf=0.0, neginf=0.0)
 
                     # Correlation coefficient
