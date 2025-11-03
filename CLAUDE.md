@@ -4,7 +4,13 @@
 
 An interactive educational tool for learning and experimenting with activation steering in Large Language Models (LLMs). Built with Python, Gradio, and PyTorch, designed to run on macOS M4 with 24GB RAM.
 
-**Current Status**: Migrating from Mistral-7B to Phi-3-mini due to MPS memory issues on Apple Silicon.
+**Current Status**: Production-ready with Phi-3-mini. Feature branch active for activation visualization.
+
+**Active Development**:
+- Branch: `feature/activation-visualization`
+- Feature: Live visualization of transformer layer activations
+- Spec: `docs/FEATURE_ACTIVATION_VISUALIZATION.md`
+- Goal: Add "MRI for AI thoughts" - real-time heatmaps and 2D concept space explorer
 
 ## Core Concept
 
@@ -36,6 +42,7 @@ activation_layers/
 │   ├── QUICKSTART.md              # 5-minute setup guide
 │   ├── CACHE_SETUP.md             # Model caching details
 │   ├── PROJECT_SUMMARY.md         # Technical architecture overview
+│   ├── FEATURE_ACTIVATION_VISUALIZATION.md  # NEW - Spec for visualization feature
 │   └── claude.md                  # This file - development notes
 ├── public/                        # Assets
 │   └── img/demo.webp              # Screenshot for README
