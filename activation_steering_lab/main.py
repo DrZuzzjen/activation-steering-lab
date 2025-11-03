@@ -6,12 +6,13 @@ import gradio as gr
 import torch
 from pathlib import Path
 import sys
+from typing import Generator
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from activation_steering_lab.model_wrapper import ModelWrapper
-from activation_steering_lab.vector_library import VectorLibrary, create_default_concepts
+from activation_steering_lab.vector_library import VectorLibrary
 from activation_steering_lab.injection_engine import InjectionEngine
 from activation_steering_lab.educational_content import (
     get_explanation, format_layer_info, get_recommended_experiments,
@@ -23,19 +24,16 @@ class ActivationSteeringApp:
     """Main application class for the Gradio interface."""
 
     def __init__(self):
+        """Initialize the ActivationSteeringApp with default values."""
         self.model = None
         self.library = None
         self.engine = None
         self.initialized = False
 
-    def initialize(self, progress=gr.Progress()):
+    def initialize(self, progress=gr.Progress()) -> Generator[str, None, str]:
         """Initialize the model and library."""
-        print("🔧 DEBUG: Initialize function called!")  # DEBUG
         if self.initialized:
-            print("🔧 DEBUG: Already initialized, returning early")  # DEBUG
             return "✓ Already initialized!"
-
-        print("🔧 DEBUG: Starting initialization...")  # DEBUG
         try:
             progress(0.0, desc="🔧 Initializing model wrapper...")
             yield "🔧 Initializing model wrapper..."
@@ -178,20 +176,31 @@ Go to the "Steering Playground" tab to try it out!
         return format_layer_info(layer_idx, self.model.num_layers)
 
     def get_concept_list(self):
-        """Get list of available concepts."""
+        """Get list of available concept names.
+        
+        Returns:
+            List[str]: List of all concept names available in the vector library
+        """
         if not self.initialized:
             return []
         return self.library.list_concepts()
 
     def get_available_layers(self, concept_name):
-        """Get list of layers where this concept is available."""
+        """Get list of layer indices where this concept is available.
+        
+        Args:
+            concept_name (str): Name of the concept to check
+            
+        Returns:
+            List[int]: Sorted list of layer indices where the concept has vectors available
+        """
         if not self.initialized or not concept_name:
             return []
         if concept_name not in self.library.vectors:
             return []
         return sorted(list(self.library.vectors[concept_name].keys()))
 
-    def create_custom_concept(self, name, concept_prompt, baseline_prompt, layer_idx, progress=gr.Progress()):
+    def create_custom_concept(self, name, concept_prompt, baseline_prompt, layer_idx, progress=gr.Progress()) -> Generator[str, None, str]:
         """Create a custom concept vector."""
         if not self.initialized:
             return "Initialize model first"
@@ -228,7 +237,7 @@ Concept saved and ready to use!
         except Exception as e:
             return f"Error: {e}"
 
-    def generate_steered(self, prompt, concept, layer_idx, strength, max_tokens, temperature, progress=gr.Progress()):
+    def generate_steered(self, prompt, concept, layer_idx, strength, max_tokens, temperature, progress=gr.Progress()) -> Generator[str, None, str]:
         """Generate with steering and comparison."""
         if not self.initialized:
             return "Initialize model first", "Initialize model first", ""

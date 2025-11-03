@@ -5,9 +5,8 @@ This module handles model loading, hook registration, and memory management for 
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from typing import Dict, List, Callable, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 import gc
-import os
 from pathlib import Path
 
 
