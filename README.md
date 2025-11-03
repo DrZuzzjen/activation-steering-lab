@@ -61,10 +61,11 @@ scripts/setup_local_cache.sh
 ## Quick Start
 
 ```bash
-# Activate virtual environment
-source venv/bin/activate
+# Option 1: Use the launch script
+scripts/run.sh
 
-# Run the application
+# Option 2: Manual launch
+source venv/bin/activate
 python -m activation_steering_lab.main
 ```
 

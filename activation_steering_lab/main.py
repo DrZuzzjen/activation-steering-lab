@@ -30,9 +30,12 @@ class ActivationSteeringApp:
 
     def initialize(self, progress=gr.Progress()):
         """Initialize the model and library."""
+        print("🔧 DEBUG: Initialize function called!")  # DEBUG
         if self.initialized:
+            print("🔧 DEBUG: Already initialized, returning early")  # DEBUG
             return "✓ Already initialized!"
 
+        print("🔧 DEBUG: Starting initialization...")  # DEBUG
         try:
             progress(0.0, desc="🔧 Initializing model wrapper...")
             yield "🔧 Initializing model wrapper..."
