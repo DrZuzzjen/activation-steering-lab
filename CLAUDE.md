@@ -32,14 +32,18 @@ activation_layers/
 │   ├── test_setup.py              # Verification script
 │   ├── test_steering.py           # CLI test script (no Gradio)
 │   └── test_cache.py              # Verify cache setup
-├── scripts/
-│   ├── setup_local_cache.sh       # Create symlinks to avoid re-downloading models
-│   └── run.sh                     # Launch script
+├── docs/                          # Documentation
+│   ├── QUICKSTART.md              # 5-minute setup guide
+│   ├── CACHE_SETUP.md             # Model caching details
+│   ├── PROJECT_SUMMARY.md         # Technical architecture overview
+│   └── claude.md                  # This file - development notes
+├── public/                        # Assets
+│   └── img/demo.webp              # Screenshot for README
+├── setup_local_cache.sh           # Create symlinks to avoid re-downloading models (root)
+├── run.sh                         # Launch script (root)
 ├── requirements.txt               # Python dependencies
-├── README.md                      # User documentation
-├── QUICKSTART.md                  # 5-minute setup guide
-├── CACHE_SETUP.md                 # Model caching details
-└── PROJECT_SUMMARY.md             # Technical architecture overview
+├── pyproject.toml                 # Modern Python packaging
+└── README.md                      # User documentation
 ```
 
 ### Key Components
@@ -93,7 +97,7 @@ activation_layers/
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-scripts/setup_local_cache.sh  # Symlink existing models
+./setup_local_cache.sh  # Symlink existing models
 ```
 
 ## Known Issues & Solutions
@@ -199,7 +203,7 @@ activation_steering_lab/models_cache/
 
 **Setup**:
 ```bash
-scripts/setup_local_cache.sh
+./setup_local_cache.sh
 ```
 
 **Verification**:
@@ -254,7 +258,7 @@ This tests:
 
 ### Gradio Interface
 ```bash
-scripts/run.sh
+./run.sh
 ```
 
 **Tabs**:
