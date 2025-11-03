@@ -122,6 +122,7 @@ This isn't just a demo - it's an educational tool to deeply understand how LLMs 
 🎓 **Layer Explorer** - Guided tour of each transformer layer
 🎨 **Concept Creator** - Extract custom vectors from your own text
 🎮 **Steering Playground** - Side-by-side comparison (normal vs steered)
+🔬 **Activation Visualizer** - Live heatmap + concept map showing steering effects
 🔬 **Advanced Experiments**:
 - Layer analysis (test same concept across all layers)
 - Strength explorer (0.5x to 5.0x)
@@ -195,7 +196,8 @@ activation_steering_lab/
 ├── vector_library.py      # Concept vector storage & retrieval
 ├── injection_engine.py    # Activation steering logic
 ├── educational_content.py # Layer explanations & tutorials
-└── main.py               # Gradio interface (4 tabs)
+├── visualization.py       # Activation capture + visualization helpers
+└── main.py               # Gradio interface (5 tabs)
 ```
 
 ### Memory Optimization
@@ -302,6 +304,12 @@ python tests/test_steering.py
 
 # Test different steering strengths
 python tests/test_strengths.py
+
+# Visualization unit tests
+python -m pytest tests/test_visualization.py -v
+
+# Visualization performance smoke test
+python -m pytest tests/test_viz_performance.py -v
 
 # Run all tests
 python -m pytest tests/ -v

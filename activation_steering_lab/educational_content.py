@@ -224,6 +224,29 @@ But both influence the final result!
 - Very strong opposing concepts = incoherence
 - Some combinations don't blend well
 """
+,
+
+    'visualization_overview': """
+## 🔬 Activation Visualization Guide
+
+**Activation Heatmap**
+- Compare activation magnitudes across all layers and tokens
+- Left: baseline activations, middle: steered activations, right: difference
+- Cyan/yellow line marks the injection layer so you can see where steering happened
+- Red areas show stronger activations; blue in the difference plot highlights reductions
+
+**Concept Space Map**
+- PCA projection of concept vectors at the selected layer
+- Red diamonds show existing concept vectors from the library
+- Gold star highlights the concept being injected
+- Blue circle is the original output; green star is the steered output
+- Purple arrow reveals the direction and magnitude of steering in activation space
+
+**Interpreting the visuals**
+- Look for downstream layer changes after injection (heatmap) to confirm propagation
+- Check how close the green star moves toward the concept cluster to gauge conceptual alignment
+- Large arrows with minimal heatmap change may indicate subtle but semantically meaningful shifts
+"""
 }
 
 # Example prompts for testing

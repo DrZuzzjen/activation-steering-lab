@@ -3,6 +3,8 @@ Main Gradio Interface for Activation Steering Lab
 """
 
 import gradio as gr
+import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 import torch
 from pathlib import Path
 import sys
@@ -18,6 +20,7 @@ from activation_steering_lab.educational_content import (
     get_explanation, format_layer_info, get_recommended_experiments,
     get_tips_and_tricks, EXAMPLE_PROMPTS, get_concept_pairs
 )
+from activation_steering_lab.visualization import ActivationVisualizer
 
 
 class ActivationSteeringApp:
@@ -28,6 +31,7 @@ class ActivationSteeringApp:
         self.model = None
         self.library = None
         self.engine = None
+        self.visualizer = None
         self.initialized = False
 
     def initialize(self, progress=gr.Progress()) -> Generator[str, None, str]:
@@ -74,6 +78,7 @@ The model is being loaded into memory...
             yield f"✓ Model loaded: {self.model.model_name}\n✓ Library initialized\n\n🔧 Creating injection engine..."
 
             self.engine = InjectionEngine(self.model, self.library)
+            self.visualizer = ActivationVisualizer(self.model, self.library)
 
             # Try to load saved vectors first
             recommended = self.model.get_recommended_layers()
@@ -292,6 +297,108 @@ Compare how the '{concept}' concept changed the generation!
         except Exception as e:
             return f"Error: {e}", f"Error: {e}", f"Error: {e}"
 
+    def generate_steered_with_viz(
+        self,
+        prompt,
+        concept,
+        layer_idx,
+        strength,
+        max_tokens,
+        temperature,
+        progress=gr.Progress(),
+    ):
+        """Generate text and build activation visualizations."""
+        if not self.initialized or self.visualizer is None:
+            message = "Initialize model first"
+            return (
+                message,
+                message,
+                self._blank_heatmap(message),
+                self._blank_concept_space(message),
+                message,
+            )
+
+        try:
+            concept = concept or ""
+            layer_idx_int = int(layer_idx)
+            strength_val = float(strength)
+            max_tokens_int = int(max_tokens)
+            temperature_val = float(temperature)
+
+            available_layers = self.get_available_layers(concept)
+            if not available_layers:
+                message = f"❌ Concept '{concept}' not found"
+                return (
+                    message,
+                    "",
+                    self._blank_heatmap(message),
+                    self._blank_concept_space(message),
+                    message,
+                )
+
+            if layer_idx_int not in available_layers:
+                message = (
+                    f"❌ **Concept '{concept}' not available at layer {layer_idx_int}**\n\n"
+                    f"✓ Available layers: {available_layers}"
+                )
+                return (
+                    "",
+                    "",
+                    self._blank_heatmap(message),
+                    self._blank_concept_space(message),
+                    message,
+                )
+
+            progress(0.1, desc="Capturing normal activations...")
+            (
+                normal_text,
+                steered_text,
+                normal_acts,
+                steered_acts,
+                tokens,
+            ) = self.visualizer.capture_activations_for_comparison(
+                prompt=prompt,
+                concept_name=concept,
+                layer_idx=layer_idx_int,
+                strength=strength_val,
+                max_new_tokens=max_tokens_int,
+                temperature=temperature_val,
+            )
+
+            progress(0.6, desc="Building visualizations...")
+            heatmap_fig = self.visualizer.create_token_layer_heatmap(
+                normal_acts=normal_acts,
+                steered_acts=steered_acts,
+                injection_layer=layer_idx_int,
+                tokens=tokens,
+                concept_name=concept,
+            )
+            concept_space_fig = self.visualizer.create_concept_space_2d(
+                normal_acts=normal_acts,
+                steered_acts=steered_acts,
+                layer_idx=layer_idx_int,
+                concept_name=concept,
+            )
+
+            explanation = self._format_visualization_explanation(
+                concept=concept,
+                layer_idx=layer_idx_int,
+                strength=strength_val,
+            )
+
+            progress(1.0, desc="Done!")
+            return normal_text, steered_text, heatmap_fig, concept_space_fig, explanation
+
+        except Exception as exc:  # pylint: disable=broad-except
+            message = f"Error: {exc}"
+            return (
+                message,
+                message,
+                self._blank_heatmap(message),
+                self._blank_concept_space(message),
+                message,
+            )
+
     def analyze_layers(self, prompt, concept, strength, progress=gr.Progress()):
         """Analyze effect across multiple layers."""
         if not self.initialized:
@@ -398,6 +505,57 @@ You can now use this in the Steering Playground!
 
         except Exception as e:
             return f"Error: {e}"
+
+    def _blank_heatmap(self, message: str) -> plt.Figure:
+        fig, ax = plt.subplots(figsize=(6, 3))
+        ax.text(0.5, 0.5, message, ha="center", va="center", fontsize=12)
+        ax.axis("off")
+        plt.tight_layout()
+        return fig
+
+    def _blank_concept_space(self, message: str) -> go.Figure:
+        fig = go.Figure()
+        fig.add_annotation(
+            text=message,
+            x=0.5,
+            y=0.5,
+            xref="paper",
+            yref="paper",
+            showarrow=False,
+            font=dict(size=14),
+        )
+        fig.update_layout(width=600, height=400, plot_bgcolor="rgba(240,240,240,0.5)")
+        return fig
+
+    @staticmethod
+    def _format_visualization_explanation(concept: str, layer_idx: int, strength: float) -> str:
+        return f"""**Visualization Guide:**
+
+**🧠 Activation Heatmap**
+- Shows activation magnitudes across all layers and tokens
+- Brighter colors = higher activation
+- Cyan/Yellow line = injection layer (Layer {layer_idx})
+- Right panel = difference (red=increase, blue=decrease)
+
+**📐 Concept Space**
+- 2D projection showing where concepts "live" in activation space
+- Red diamonds = available concepts in the library
+- Gold star = target concept "{concept}"
+- Blue circle = normal output position
+- Green star = steered output position
+- Purple arrow = steering direction and magnitude
+
+**Injection Details:**
+- Concept: {concept}
+- Layer: {layer_idx} (middle layers typically most effective)
+- Strength: {strength}
+- Effect: Activations moved toward "{concept}" in conceptual space
+
+**What You're Seeing:**
+The heatmap proves that injecting the concept vector at Layer {layer_idx} changes
+the activation patterns in downstream layers. The concept space shows this as
+geometric movement toward the "{concept}" cluster.
+"""
 
 
 def create_interface():
@@ -553,6 +711,102 @@ def create_interface():
                     outputs=[normal_output, steered_output, explanation]
                 )
 
+            # Tab 4: Activation Visualizer
+            with gr.Tab("🔬 Activation Visualizer"):
+                gr.Markdown(
+                    """
+                    ## See Inside the Model's "Mind"
+
+                    Visualize how steering changes the model's internal activations in real-time.
+                    Like an MRI scan for AI thoughts!
+
+                    **What you'll see:**
+                    - 🧠 **Activation Heatmap**: Layer-by-layer activation patterns (before/after/difference)
+                    - 📐 **Concept Space**: 2D map showing where concepts live and how steering moves activations
+                    """
+                )
+
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        gr.Markdown("### Input")
+                        viz_prompt = gr.Textbox(
+                            value="The meeting went",
+                            label="Prompt",
+                            lines=2,
+                            placeholder="Enter your prompt..."
+                        )
+                        viz_concept = gr.Dropdown(
+                            choices=[],
+                            label="Concept",
+                            value=None
+                        )
+                        viz_layer = gr.Slider(
+                            minimum=0,
+                            maximum=31,
+                            value=16,
+                            step=1,
+                            label="Injection Layer"
+                        )
+                        viz_strength = gr.Slider(
+                            minimum=0.5,
+                            maximum=5.0,
+                            value=2.0,
+                            step=0.5,
+                            label="Steering Strength"
+                        )
+                        viz_max_tokens = gr.Slider(
+                            minimum=10,
+                            maximum=100,
+                            value=50,
+                            step=10,
+                            label="Max Tokens"
+                        )
+                        viz_temperature = gr.Slider(
+                            minimum=0.1,
+                            maximum=2.0,
+                            value=0.7,
+                            step=0.1,
+                            label="Temperature"
+                        )
+                        visualize_btn = gr.Button("🔍 Visualize Activations", variant="primary", size="lg")
+
+                    with gr.Column(scale=1):
+                        gr.Markdown("### Text Outputs")
+                        viz_normal_out = gr.Textbox(label="Normal Output", lines=4)
+                        viz_steered_out = gr.Textbox(label="Steered Output", lines=4)
+
+                gr.Markdown("### 🧠 Activation Heatmap")
+                gr.Markdown("*Shows activation magnitudes across all layers and tokens. Bright colors = high activation.*")
+                with gr.Row():
+                    activation_heatmap = gr.Plot(label="Token × Layer Heatmap")
+
+                gr.Markdown("### 📐 2D Concept Space")
+                gr.Markdown("*Interactive visualization showing where concepts live in the model's internal space.*")
+                with gr.Row():
+                    concept_space = gr.Plot(label="Concept Space Explorer")
+
+                with gr.Accordion("📖 Understanding the Visualizations", open=False):
+                    viz_explanation = gr.Markdown("")
+
+                visualize_btn.click(
+                    fn=app.generate_steered_with_viz,
+                    inputs=[
+                        viz_prompt,
+                        viz_concept,
+                        viz_layer,
+                        viz_strength,
+                        viz_max_tokens,
+                        viz_temperature,
+                    ],
+                    outputs=[
+                        viz_normal_out,
+                        viz_steered_out,
+                        activation_heatmap,
+                        concept_space,
+                        viz_explanation,
+                    ],
+                )
+
             # Tab 4: Advanced Experiments
             with gr.Tab("🔬 Advanced Experiments"):
                 gr.Markdown("## Advanced Steering Experiments")
@@ -686,12 +940,14 @@ def create_interface():
                 return [
                     gr.Dropdown(choices=concepts, value=concepts[0] if concepts else None),
                     gr.Dropdown(choices=concepts, value=concepts[0] if concepts else None),
-                    gr.Dropdown(choices=concepts, value=concepts[0] if concepts else None)
+                    gr.Dropdown(choices=concepts, value=concepts[0] if concepts else None),
+                    gr.Dropdown(choices=concepts, value=concepts[0] if concepts else None),
                 ]
             return [
                 gr.Dropdown(choices=[]),
                 gr.Dropdown(choices=[]),
-                gr.Dropdown(choices=[])
+                gr.Dropdown(choices=[]),
+                gr.Dropdown(choices=[]),
             ]
 
         # Update layer info when concept is selected
@@ -707,7 +963,7 @@ def create_interface():
             outputs=init_status
         ).then(
             fn=update_all_dropdowns,
-            outputs=[steer_concept, layer_concept, strength_concept]
+            outputs=[steer_concept, layer_concept, strength_concept, viz_concept]
         )
 
     return demo

@@ -160,6 +160,25 @@ class VectorLibrary:
 
         return self.vectors[concept_name].get(layer_idx)
 
+    def get_vector_nearest_layer(
+        self,
+        concept_name: str,
+        layer_idx: Optional[int] = None,
+    ) -> Optional[Tuple[ConceptVector, int]]:
+        """Return concept vector from requested or nearest available layer."""
+        if concept_name not in self.vectors or not self.vectors[concept_name]:
+            return None
+
+        available_layers = sorted(self.vectors[concept_name].keys())
+
+        if layer_idx is None or layer_idx in self.vectors[concept_name]:
+            target_layer = layer_idx if layer_idx is not None else available_layers[0]
+            vector = self.vectors[concept_name][target_layer]
+            return vector, target_layer
+
+        nearest_layer = min(available_layers, key=lambda idx: abs(idx - layer_idx))
+        return self.vectors[concept_name][nearest_layer], nearest_layer
+
     def list_concepts(self) -> list[str]:
         """Get list of all concept names in the library."""
         return list(self.vectors.keys())

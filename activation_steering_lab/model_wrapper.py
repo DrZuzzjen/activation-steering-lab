@@ -49,6 +49,7 @@ class ModelWrapper:
 
         # Storage for captured activations
         self.captured_activations: Dict[int, torch.Tensor] = {}
+        self._activation_buffers: Dict[int, List[torch.Tensor]] = {}
 
     def load_model(self):
         """
@@ -204,12 +205,26 @@ class ModelWrapper:
             - We want the hidden_states (first element)
             """
             if isinstance(output, tuple):
-                self.captured_activations[layer_idx] = output[0].detach().clone()
+                chunk = output[0]
             else:
-                self.captured_activations[layer_idx] = output.detach().clone()
+                chunk = output
+
+            chunk_cpu = chunk.detach().to("cpu")
+            buffer = self._activation_buffers.setdefault(layer_idx, [])
+            buffer.append(chunk_cpu)
+
+            if len(buffer) == 1:
+                self.captured_activations[layer_idx] = chunk_cpu.clone()
+            else:
+                self.captured_activations[layer_idx] = torch.cat(buffer, dim=1).clone()
 
         hook = layer_module.register_forward_hook(capture_hook)
         self.hooks.append(hook)
+
+    def capture_all_layers(self) -> None:
+        """Register capture hooks for every transformer layer."""
+        for layer_idx in range(self.num_layers):
+            self.register_capture_hook(layer_idx)
 
     def register_injection_hook(self, layer_idx: int, vector: torch.Tensor,
                                strength: float = 1.0, position: int = -1) -> None:
@@ -271,6 +286,7 @@ class ModelWrapper:
             hook.remove()
         self.hooks = []
         self.captured_activations = {}
+        self._activation_buffers = {}
 
     def generate(self, prompt: str, max_new_tokens: int = 50,
                 temperature: float = 0.7, top_p: float = 0.9) -> str:
