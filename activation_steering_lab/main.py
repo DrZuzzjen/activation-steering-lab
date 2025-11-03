@@ -3,7 +3,6 @@ Main Gradio Interface for Activation Steering Lab
 """
 
 import gradio as gr
-import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import torch
 from pathlib import Path
@@ -314,7 +313,6 @@ Compare how the '{concept}' concept changed the generation!
                 message,
                 message,
                 self._blank_heatmap(message),
-                self._blank_concept_space(message),
                 message,
             )
 
@@ -332,7 +330,6 @@ Compare how the '{concept}' concept changed the generation!
                     message,
                     "",
                     self._blank_heatmap(message),
-                    self._blank_concept_space(message),
                     message,
                 )
 
@@ -345,7 +342,6 @@ Compare how the '{concept}' concept changed the generation!
                     "",
                     "",
                     self._blank_heatmap(message),
-                    self._blank_concept_space(message),
                     message,
                 )
 
@@ -373,12 +369,6 @@ Compare how the '{concept}' concept changed the generation!
                 tokens=tokens,
                 concept_name=concept,
             )
-            concept_space_fig = self.visualizer.create_concept_space_2d(
-                normal_acts=normal_acts,
-                steered_acts=steered_acts,
-                layer_idx=layer_idx_int,
-                concept_name=concept,
-            )
 
             explanation = self._format_visualization_explanation(
                 concept=concept,
@@ -387,7 +377,7 @@ Compare how the '{concept}' concept changed the generation!
             )
 
             progress(1.0, desc="Done!")
-            return normal_text, steered_text, heatmap_fig, concept_space_fig, explanation
+            return normal_text, steered_text, heatmap_fig, explanation
 
         except Exception as exc:  # pylint: disable=broad-except
             message = f"Error: {exc}"
@@ -395,7 +385,6 @@ Compare how the '{concept}' concept changed the generation!
                 message,
                 message,
                 self._blank_heatmap(message),
-                self._blank_concept_space(message),
                 message,
             )
 
@@ -506,14 +495,7 @@ You can now use this in the Steering Playground!
         except Exception as e:
             return f"Error: {e}"
 
-    def _blank_heatmap(self, message: str) -> plt.Figure:
-        fig, ax = plt.subplots(figsize=(6, 3))
-        ax.text(0.5, 0.5, message, ha="center", va="center", fontsize=12)
-        ax.axis("off")
-        plt.tight_layout()
-        return fig
-
-    def _blank_concept_space(self, message: str) -> go.Figure:
+    def _blank_heatmap(self, message: str) -> go.Figure:
         fig = go.Figure()
         fig.add_annotation(
             text=message,
@@ -531,30 +513,26 @@ You can now use this in the Steering Playground!
     def _format_visualization_explanation(concept: str, layer_idx: int, strength: float) -> str:
         return f"""**Visualization Guide:**
 
-**🧠 Activation Heatmap**
-- Shows activation magnitudes across all layers and tokens
-- Brighter colors = higher activation
-- Cyan/Yellow line = injection layer (Layer {layer_idx})
-- Right panel = difference (red=increase, blue=decrease)
-
-**📐 Concept Space**
-- 2D projection showing where concepts "live" in activation space
-- Red diamonds = available concepts in the library
-- Gold star = target concept "{concept}"
-- Blue circle = normal output position
-- Green star = steered output position
-- Purple arrow = steering direction and magnitude
+**🧠 Layer Activation Cascade**
+- Brain scan-style visualization showing aggregate activation per layer
+- Each bar = one transformer layer (L0 → L31)
+- Bar height = total activation change magnitude (summed across all hidden dimensions)
+- Color intensity = magnitude (red/orange/yellow hotspots like fMRI scans)
+- Cyan line (⚡) marks injection layer {layer_idx}
+- White circles mark top 3 most affected layers
+- Arrows show correlation values (r=X.XX) indicating how strongly each layer responds
 
 **Injection Details:**
 - Concept: {concept}
 - Layer: {layer_idx} (middle layers typically most effective)
 - Strength: {strength}
-- Effect: Activations moved toward "{concept}" in conceptual space
+- Effect: Creates activation cascade that propagates through adjacent layers
 
 **What You're Seeing:**
-The heatmap proves that injecting the concept vector at Layer {layer_idx} changes
-the activation patterns in downstream layers. The concept space shows this as
-geometric movement toward the "{concept}" cluster.
+The cascade visualization proves that injecting the concept vector at Layer {layer_idx} 
+creates a wave of activation changes that spread through nearby layers. The correlation 
+arrows show which layers are most strongly affected by the injection, just like fMRI 
+scans show which brain regions activate together.
 """
 
 
@@ -718,11 +696,10 @@ def create_interface():
                     ## See Inside the Model's "Mind"
 
                     Visualize how steering changes the model's internal activations in real-time.
-                    Like an MRI scan for AI thoughts!
+                    Like an fMRI scan for AI thoughts!
 
                     **What you'll see:**
-                    - 🧠 **Activation Heatmap**: Layer-by-layer activation patterns (before/after/difference)
-                    - 📐 **Concept Space**: 2D map showing where concepts live and how steering moves activations
+                    - 🧠 **Layer Activation Cascade**: Brain scan-style bars showing which layers activate most strongly
                     """
                 )
 
@@ -775,17 +752,12 @@ def create_interface():
                         viz_normal_out = gr.Textbox(label="Normal Output", lines=4)
                         viz_steered_out = gr.Textbox(label="Steered Output", lines=4)
 
-                gr.Markdown("### 🧠 Activation Heatmap")
-                gr.Markdown("*Shows activation magnitudes across all layers and tokens. Bright colors = high activation.*")
+                gr.Markdown("### 🧠 Layer Activation Cascade")
+                gr.Markdown("*Brain scan showing aggregate activation changes per layer. Bar height = total activation magnitude.*")
                 with gr.Row():
-                    activation_heatmap = gr.Plot(label="Token × Layer Heatmap")
+                    activation_heatmap = gr.Plot(label="Layer Activation Cascade")
 
-                gr.Markdown("### 📐 2D Concept Space")
-                gr.Markdown("*Interactive visualization showing where concepts live in the model's internal space.*")
-                with gr.Row():
-                    concept_space = gr.Plot(label="Concept Space Explorer")
-
-                with gr.Accordion("📖 Understanding the Visualizations", open=False):
+                with gr.Accordion("📖 Understanding the Visualization", open=False):
                     viz_explanation = gr.Markdown("")
 
                 visualize_btn.click(
@@ -802,7 +774,6 @@ def create_interface():
                         viz_normal_out,
                         viz_steered_out,
                         activation_heatmap,
-                        concept_space,
                         viz_explanation,
                     ],
                 )

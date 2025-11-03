@@ -4,10 +4,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Tuple
 
-import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
-import seaborn as sns
 import torch
 from sklearn.decomposition import PCA
 
@@ -73,108 +71,12 @@ class ActivationVisualizer:
         injection_layer: int,
         tokens: List[str],
         concept_name: str,
-    ) -> plt.Figure:
-        """Create side-by-side heatmaps of activation magnitudes."""
-        if not normal_acts or not steered_acts:
-            fig, ax = plt.subplots(figsize=(10, 4))
-            ax.text(0.5, 0.5, "No activation data available", ha="center", va="center", fontsize=14)
-            ax.axis("off")
-            plt.tight_layout()
-            return fig
-
-        layer_indices = sorted(set(normal_acts.keys()) & set(steered_acts.keys()))
-        if not layer_indices:
-            fig, ax = plt.subplots(figsize=(10, 4))
-            ax.text(0.5, 0.5, "No overlapping layer activations", ha="center", va="center", fontsize=14)
-            ax.axis("off")
-            plt.tight_layout()
-            return fig
-
-        seq_len = self._determine_sequence_length(normal_acts, steered_acts)
-        token_labels = self._prepare_token_labels(tokens, seq_len)
-
-        normal_matrix = self._activation_matrix(normal_acts, layer_indices, seq_len)
-        steered_matrix = self._activation_matrix(steered_acts, layer_indices, seq_len)
-        diff_matrix = steered_matrix - normal_matrix
-
-        sns.set_style("whitegrid")
-        fig, axes = plt.subplots(1, 3, figsize=(18, 8))
-
-        inj_idx = layer_indices.index(injection_layer) if injection_layer in layer_indices else None
-
-        self._plot_heatmap(
-            axes[0],
-            normal_matrix,
-            token_labels,
-            layer_indices,
-            title="Normal Activations",
-            cmap="YlOrRd",
-            line_idx=inj_idx,
-            line_color="cyan",
-        )
-
-        title = f"Steered Activations (+{concept_name})"
-        self._plot_heatmap(
-            axes[1],
-            steered_matrix,
-            token_labels,
-            layer_indices,
-            title=title,
-            cmap="YlOrRd",
-            line_idx=inj_idx,
-            line_color="cyan",
-            annotation="← Injection" if inj_idx is not None else None,
-        )
-
-        max_abs = np.max(np.abs(diff_matrix)) or 1e-6
-        self._plot_heatmap(
-            axes[2],
-            diff_matrix,
-            token_labels,
-            layer_indices,
-            title="Difference (Steered − Normal)",
-            cmap="RdBu_r",
-            line_idx=inj_idx,
-            line_color="yellow",
-            vmin=-max_abs,
-            vmax=max_abs,
-            center=0.0,
-        )
-
-        plt.tight_layout()
-        return fig
-
-    def create_concept_space_2d(
-        self,
-        normal_acts: Dict[int, torch.Tensor],
-        steered_acts: Dict[int, torch.Tensor],
-        layer_idx: int,
-        concept_name: str,
     ) -> go.Figure:
-        """Create a PCA-based concept space visualization."""
-        layer_idx = int(layer_idx)
-
-        concept_vectors: List[np.ndarray] = []
-        concept_names: List[str] = []
-        concept_labels: List[str] = []
-        concept_layers: List[int] = []
-        for name in self.library.list_concepts():
-            result = self.library.get_vector_nearest_layer(name, layer_idx)
-            if result is None:
-                continue
-            vector, actual_layer = result
-            concept_vectors.append(vector.vector.detach().cpu().numpy())
-            concept_names.append(name)
-            concept_layers.append(actual_layer)
-            if actual_layer == layer_idx:
-                concept_labels.append(name)
-            else:
-                concept_labels.append(f"{name} (L{actual_layer})")
-
-        if len(concept_vectors) < 3 or layer_idx not in normal_acts or layer_idx not in steered_acts:
+        """Create fMRI-style brain scan visualization showing activation hotspots across layers."""
+        if not normal_acts or not steered_acts:
             fig = go.Figure()
             fig.add_annotation(
-                text="Add at least 3 concepts for this layer to view the concept space.",
+                text="No activation data available",
                 x=0.5,
                 y=0.5,
                 xref="paper",
@@ -182,104 +84,203 @@ class ActivationVisualizer:
                 showarrow=False,
                 font=dict(size=16),
             )
-            fig.update_layout(
-                title=f"Concept Space Unavailable (Layer {layer_idx})",
-                width=800,
-                height=600,
-                plot_bgcolor="rgba(240,240,240,0.5)",
-            )
+            fig.update_layout(width=1200, height=600)
             return fig
 
-        normal_vec = normal_acts[layer_idx][0, -1, :].detach().cpu().numpy()
-        steered_vec = steered_acts[layer_idx][0, -1, :].detach().cpu().numpy()
+        layer_indices = sorted(set(normal_acts.keys()) & set(steered_acts.keys()))
+        if not layer_indices:
+            fig = go.Figure()
+            fig.add_annotation(
+                text="No overlapping layer activations",
+                x=0.5,
+                y=0.5,
+                xref="paper",
+                yref="paper",
+                showarrow=False,
+                font=dict(size=16),
+            )
+            fig.update_layout(width=1200, height=600)
+            return fig
 
-        all_vectors = concept_vectors + [normal_vec, steered_vec]
-        pca = PCA(n_components=2)
-        coords = pca.fit_transform(np.stack(all_vectors))
+        seq_len = self._determine_sequence_length(normal_acts, steered_acts)
+        token_labels = self._prepare_token_labels(tokens, seq_len)
+        token_idx = seq_len - 1  # Last token
 
-        concept_coords = coords[: len(concept_vectors)]
-        normal_coord = coords[-2]
-        steered_coord = coords[-1]
+        # Downsample hidden dimensions into regions (like brain regions)
+        num_regions = 64  # Phi-3: 3072 dims → 64 regions (~48 dims per region)
+        hidden_size = normal_acts[layer_indices[0]].shape[-1]
+        region_size = max(1, hidden_size // num_regions)
 
+        # Build 2D heatmap matrix: [layers × regions]
+        heatmap_matrix = []
+        layer_vectors_full = []
+
+        for layer_idx in layer_indices:
+            normal_vec = normal_acts[layer_idx][0, token_idx, :].detach().cpu().numpy()
+            steered_vec = steered_acts[layer_idx][0, token_idx, :].detach().cpu().numpy()
+            diff_vec = steered_vec - normal_vec
+            diff_vec = np.nan_to_num(diff_vec, nan=0.0, posinf=0.0, neginf=0.0)
+
+            # Downsample into regions by averaging
+            regions = []
+            for r in range(num_regions):
+                start = r * region_size
+                end = min(start + region_size, hidden_size)
+                if start < hidden_size:
+                    region_activation = np.mean(np.abs(diff_vec[start:end]))
+                    regions.append(region_activation)
+                else:
+                    regions.append(0.0)
+
+            heatmap_matrix.append(regions)
+            layer_vectors_full.append(diff_vec)
+
+        heatmap_matrix = np.array(heatmap_matrix)  # Shape: [num_layers, num_regions]
+
+        # Calculate layer correlations for annotations
+        injection_idx = layer_indices.index(injection_layer) if injection_layer in layer_indices else None
+        correlations = {}
+        if injection_idx is not None:
+            injection_vector = layer_vectors_full[injection_idx]
+            for idx, layer_idx in enumerate(layer_indices):
+                if idx == injection_idx:
+                    correlations[layer_idx] = 1.0
+                else:
+                    corr = np.corrcoef(injection_vector, layer_vectors_full[idx])[0, 1]
+                    corr = np.nan_to_num(corr, nan=0.0)
+                    correlations[layer_idx] = float(corr)
+
+        top_layers = sorted(correlations.items(), key=lambda x: abs(x[1]), reverse=True)[:4]
+        top_layers = [(l, c) for l, c in top_layers if l != injection_layer][:3]
+
+        # Robust percentile scaling
+        vmin = np.percentile(heatmap_matrix, 5)
+        vmax = np.percentile(heatmap_matrix, 95)
+
+        # Create 2D heatmap (fMRI brain scan style)
         fig = go.Figure()
-        marker_colors = ["red" if layer == layer_idx else "#ff8c8c" for layer in concept_layers]
-        hover_text = [
-            f"{label}<br>Stored Layer: L{stored}" if stored != layer_idx else f"{label}<br>Layer: L{stored}"
-            for label, stored in zip(concept_labels, concept_layers)
+
+        fig.add_trace(
+            go.Heatmap(
+                z=heatmap_matrix.T,  # Transpose: regions on Y-axis, layers on X-axis
+                x=[f"L{i}" for i in layer_indices],
+                y=[f"R{i}" for i in range(num_regions)],
+                colorscale=[
+                    [0.0, "rgb(60, 60, 60)"],    # Dark gray (like brain tissue)
+                    [0.3, "rgb(100, 0, 0)"],     # Dark red
+                    [0.5, "rgb(200, 0, 0)"],     # Red
+                    [0.7, "rgb(255, 100, 0)"],   # Orange
+                    [0.85, "rgb(255, 200, 0)"],  # Yellow
+                    [1.0, "rgb(255, 255, 255)"], # White hotspot
+                ],
+                zmin=vmin,
+                zmax=vmax,
+                colorbar=dict(
+                    title=dict(text="Activation<br>Intensity", side="right"),
+                    tickfont=dict(color="white"),
+                ),
+                hovertemplate="Layer: %{x}<br>Region: %{y}<br>Intensity: %{z:.2f}<extra></extra>",
+                showscale=True,
+            )
+        )
+
+        # Add injection layer marker
+        if injection_idx is not None:
+            fig.add_vline(
+                x=injection_idx,
+                line_color="cyan",
+                line_width=3,
+                line_dash="dash",
+                annotation=dict(
+                    text="⚡",
+                    font=dict(size=24, color="cyan"),
+                    showarrow=False,
+                    y=1.02,
+                    yref="paper",
+                ),
+            )
+
+        # Add correlation annotations for top affected layers
+        if top_layers and injection_idx is not None:
+            for layer_idx, corr in top_layers:
+                if layer_idx in layer_indices:
+                    target_idx = layer_indices.index(layer_idx)
+                    # Add annotation arrow
+                    fig.add_annotation(
+                        x=target_idx,
+                        y=num_regions * 0.9,
+                        ax=injection_idx,
+                        ay=num_regions * 0.9,
+                        xref="x",
+                        yref="y",
+                        axref="x",
+                        ayref="y",
+                        showarrow=True,
+                        arrowhead=2,
+                        arrowwidth=2,
+                        arrowcolor="cyan",
+                        text=f"r={corr:.2f}",
+                        font=dict(size=10, color="cyan"),
+                        bgcolor="rgba(0, 0, 0, 0.7)",
+                    )
+
+        # Calculate summary statistics
+        total_activation = float(np.sum(np.abs(heatmap_matrix)))
+        most_active_layer_idx = np.argmax(np.sum(np.abs(heatmap_matrix), axis=1))
+        most_active_layer = layer_indices[most_active_layer_idx]
+
+        # Add metrics box (yellow, fMRI style)
+        metrics_lines = [
+            f"<b>Token:</b> '{token_labels[token_idx] if token_idx < len(token_labels) else token_idx}'",
+            f"<b>Injection:</b> L{injection_layer}",
+            "",
+            "<b>Correlation with Injection:</b>",
         ]
-        fig.add_trace(
-            go.Scatter(
-                x=concept_coords[:, 0],
-                y=concept_coords[:, 1],
-                mode="markers+text",
-                name="Concepts",
-                text=concept_labels,
-                textposition="top center",
-                marker=dict(symbol="diamond", color=marker_colors, size=12),
-                hovertext=hover_text,
-            )
-        )
-
-        if concept_name in concept_names:
-            idx = concept_names.index(concept_name)
-            fig.add_trace(
-                go.Scatter(
-                    x=[concept_coords[idx, 0]],
-                    y=[concept_coords[idx, 1]],
-                    mode="markers+text",
-                    name="Target Concept",
-                    text=[concept_name],
-                    textposition="top center",
-                    marker=dict(symbol="star", color="gold", size=18, line=dict(color="black", width=1)),
-                )
-            )
-
-        fig.add_trace(
-            go.Scatter(
-                x=[normal_coord[0]],
-                y=[normal_coord[1]],
-                mode="markers",
-                name="Normal Output",
-                marker=dict(symbol="circle", color="blue", size=14),
-            )
-        )
-
-        fig.add_trace(
-            go.Scatter(
-                x=[steered_coord[0]],
-                y=[steered_coord[1]],
-                mode="markers",
-                name="Steered Output",
-                marker=dict(symbol="star", color="green", size=16, line=dict(color="black", width=1)),
-            )
-        )
+        for layer_idx, corr in top_layers:
+            metrics_lines.append(f"  L{layer_idx}: r = {corr:.3f}")
+        metrics_lines.append("")
+        metrics_lines.append(f"<b>Peak Activity:</b> L{most_active_layer}")
+        metrics_lines.append(f"<b>Total Intensity:</b> {total_activation:.1f}")
 
         fig.add_annotation(
-            x=steered_coord[0],
-            y=steered_coord[1],
-            ax=normal_coord[0],
-            ay=normal_coord[1],
-            xref="x",
-            yref="y",
-            axref="x",
-            ayref="y",
-            text="",
-            showarrow=True,
-            arrowhead=3,
-            arrowsize=1.2,
-            arrowwidth=2,
-            arrowcolor="purple",
+            text="<br>".join(metrics_lines),
+            x=0.02,
+            y=0.98,
+            xref="paper",
+            yref="paper",
+            showarrow=False,
+            font=dict(size=12, color="black", family="Arial"),
+            align="left",
+            bgcolor="rgba(255, 255, 100, 0.9)",
+            bordercolor="black",
+            borderwidth=2,
+            xanchor="left",
+            yanchor="top",
         )
 
         fig.update_layout(
-            title=f"Concept Space (Layer {layer_idx})",
-            xaxis_title="PCA Dimension 1",
-            yaxis_title="PCA Dimension 2",
-            width=800,
-            height=600,
+            title=dict(
+                text=f"Transformer Activation Map: {concept_name}",
+                font=dict(size=18, color="white"),
+            ),
+            xaxis=dict(
+                title="Layer",
+                side="bottom",
+                tickfont=dict(color="white"),
+                gridcolor="rgba(100, 100, 100, 0.2)",
+            ),
+            yaxis=dict(
+                title="Neural Region",
+                tickfont=dict(color="white"),
+                showticklabels=False,  # Hide region labels (too many)
+                gridcolor="rgba(100, 100, 100, 0.2)",
+            ),
+            width=1400,
+            height=700,
+            plot_bgcolor="rgb(20, 20, 20)",  # Very dark background (like MRI scan)
+            paper_bgcolor="rgb(10, 10, 10)",
+            font=dict(color="white"),
             hovermode="closest",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
-            plot_bgcolor="rgba(240,240,240,0.5)",
         )
 
         return fig
@@ -360,66 +361,6 @@ class ActivationVisualizer:
         cleaned = cleaned.replace("Ċ", "\n").replace("Ď", "")
         cleaned = cleaned.strip()
         return cleaned or "▁"
-
-    @staticmethod
-    def _activation_matrix(
-        activations: Dict[int, torch.Tensor],
-        layer_indices: List[int],
-        seq_len: int,
-    ) -> np.ndarray:
-        rows: List[np.ndarray] = []
-        for idx in layer_indices:
-            tensor = activations[idx][:, :seq_len, :]
-            norms = torch.linalg.norm(tensor, dim=-1)
-            rows.append(norms.squeeze(0).cpu().numpy())
-        return np.stack(rows)
-
-    @staticmethod
-    def _plot_heatmap(
-        ax: plt.Axes,
-        matrix: np.ndarray,
-        tokens: List[str],
-        layer_indices: List[int],
-        *,
-        title: str,
-        cmap: str,
-        line_idx: int | None,
-        line_color: str,
-        vmin: float | None = None,
-        vmax: float | None = None,
-        center: float | None = None,
-        annotation: str | None = None,
-    ) -> None:
-        sns.heatmap(
-            matrix,
-            ax=ax,
-            cmap=cmap,
-            xticklabels=tokens,
-            yticklabels=[f"L{idx}" for idx in layer_indices],
-            vmin=vmin,
-            vmax=vmax,
-            center=center,
-        )
-        ax.set_title(title)
-        ax.set_xlabel("Token")
-        ax.set_ylabel("Layer")
-        ax.tick_params(axis="x", rotation=45, labelsize=8)
-        ax.tick_params(axis="y", labelsize=10)
-
-        if line_idx is not None:
-            ax.axhline(line_idx + 0.5, color=line_color, linewidth=2)
-            if annotation:
-                ax.text(
-                    0,
-                    line_idx + 0.15,
-                    annotation,
-                    color=line_color,
-                    fontsize=12,
-                    fontweight="bold",
-                    transform=ax.get_yaxis_transform(),
-                    ha="left",
-                    va="center",
-                )
 
     @staticmethod
     def _reconcile_tokens(normal_tokens: List[str], steered_tokens: List[str]) -> List[str]:

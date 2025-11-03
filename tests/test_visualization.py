@@ -1,12 +1,40 @@
-"""Test activation visualization functionality."""
 
 from __future__ import annotations
+"""Test activation visualization functionality."""
+
+def test_heatmap_token_annotations() -> None:
+    visualizer, wrapper, _ = build_visualizer()
+    seq_len = 8
+    hidden = wrapper.model.config.hidden_size
+    # Simulate strong changes at various layers
+    normal_acts = _simple_activation_dict(wrapper.num_layers, seq_len, hidden, base=1.0)
+    steered_acts = _simple_activation_dict(wrapper.num_layers, seq_len, hidden, base=1.0)
+    # Add big changes to create visible hotspots
+    steered_acts[0][0, :, :] += 5.0
+    steered_acts[1][0, :, :] += 10.0
+    steered_acts[2][0, :, :] += 8.0
+    tokens = [f"tok{i}" for i in range(seq_len)]
+    fig = visualizer.create_token_layer_heatmap(normal_acts, steered_acts, injection_layer=1, tokens=tokens, concept_name="happy")
+    # Check that the fMRI-style heatmap figure is created
+    assert isinstance(fig, go.Figure)
+    # Check for 2D heatmap data (not bar chart)
+    assert len(fig.data) >= 1
+    assert isinstance(fig.data[0], go.Heatmap), "Expected Heatmap for brain scan visualization"
+    # Check for correlation annotations
+    found_correlations = False
+    if hasattr(fig.layout, "annotations"):
+        for a in fig.layout.annotations:
+            if "Correlation" in (a.text or "") or "r =" in (a.text or ""):
+                found_correlations = True
+                break
+    assert found_correlations, "Correlation annotations missing from brain scan visualization"
+
+
 
 import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-import matplotlib.figure
 import plotly.graph_objects as go
 import torch
 
@@ -181,43 +209,34 @@ def test_heatmap_creation() -> None:
     normal_acts = _simple_activation_dict(wrapper.num_layers, seq_len, hidden, base=1.0)
     steered_acts = _simple_activation_dict(wrapper.num_layers, seq_len, hidden, base=2.0)
     fig = visualizer.create_token_layer_heatmap(normal_acts, steered_acts, injection_layer=1, tokens=["a", "b", "c", "d"], concept_name="happy")
-    assert isinstance(fig, matplotlib.figure.Figure)
-    # 3 main heatmaps + 3 colorbars = 6 axes (seaborn adds colorbar axes)
-    assert len(fig.axes) >= 3
-
-
-def test_concept_space_creation() -> None:
-    visualizer, wrapper, library = build_visualizer()
-    hidden = wrapper.model.config.hidden_size
-    for idx, name in enumerate(["happy", "sad", "calm"], start=1):
-        vector = torch.full((hidden,), float(idx))
-        library.add_concept(name, 1, vector)
-    library.add_concept("excited", 2, torch.ones(hidden) * 4)
-
-    seq_len = 3
-    normal_acts = {1: torch.ones((1, seq_len, hidden))}
-    steered_acts = {1: torch.ones((1, seq_len, hidden)) * 2}
-
-    fig = visualizer.create_concept_space_2d(normal_acts, steered_acts, layer_idx=1, concept_name="happy")
     assert isinstance(fig, go.Figure)
-    assert len(fig.data) >= 3
-    concept_trace = fig.data[0]
-    assert any("excited" in label for label in concept_trace.text)
+    # Check for 2D heatmap trace (brain scan style)
+    assert len(fig.data) >= 1
+    assert isinstance(fig.data[0], go.Heatmap), "Expected Heatmap for brain scan visualization"
+    # Check for metrics annotation (yellow background)
+    found_metrics = False
+    if hasattr(fig.layout, "annotations"):
+        for a in fig.layout.annotations:
+            if "rgba(255, 255, 100" in str(a.bgcolor) and ("Peak Activity" in (a.text or "") or "Total Intensity" in (a.text or "")):
+                found_metrics = True
+                break
+    assert found_metrics, "Metrics annotation missing from brain scan visualization"
 
 
 def test_with_insufficient_concepts() -> None:
+    """Test that visualization handles edge cases gracefully."""
     visualizer, wrapper, library = build_visualizer()
     hidden = wrapper.model.config.hidden_size
     library.add_concept("happy", 1, torch.ones(hidden))
-    library.add_concept("sad", 1, torch.ones(hidden) * -1)
 
     seq_len = 2
     normal_acts = {1: torch.ones((1, seq_len, hidden))}
     steered_acts = {1: torch.ones((1, seq_len, hidden))}
 
-    fig = visualizer.create_concept_space_2d(normal_acts, steered_acts, layer_idx=1, concept_name="happy")
+    # Should still create a valid figure even with minimal data
+    fig = visualizer.create_token_layer_heatmap(normal_acts, steered_acts, injection_layer=1, tokens=["a", "b"], concept_name="happy")
     assert isinstance(fig, go.Figure)
-    assert len(fig.layout.annotations) > 0
+    assert len(fig.data) >= 1
 
 
 def test_clean_token_replaces_artifacts() -> None:
