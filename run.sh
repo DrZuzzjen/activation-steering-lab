@@ -5,8 +5,8 @@ echo "🧠 Activation Steering Learning Lab"
 echo "=================================="
 echo ""
 
-# Change to project root directory (since script is now in scripts/)
-cd "$(dirname "$0")/.."
+# Change to script's directory (project root)
+cd "$(dirname "$0")"
 
 # Check if venv exists
 if [ ! -d "venv" ]; then
@@ -19,7 +19,7 @@ fi
 CACHE_DIR="activation_steering_lab/models_cache"
 if [ ! -d "$CACHE_DIR" ] || [ -z "$(ls -A $CACHE_DIR 2>/dev/null | grep -v README)" ]; then
     echo "💡 Tip: Setup local cache to avoid re-downloading models"
-    echo "   Run: scripts/setup_local_cache.sh"
+    echo "   Run: ./setup_local_cache.sh"
     echo ""
 fi
 
