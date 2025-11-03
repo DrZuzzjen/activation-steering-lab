@@ -474,7 +474,8 @@ def create_interface():
                             interactive=True
                         )
                         steer_layer = gr.Slider(0, 31, value=16, step=1, label="Injection Layer")
-                        steer_strength = gr.Slider(0.5, 5.0, value=2.0, step=0.1, label="Injection Strength")
+                        steer_strength = gr.Slider(0.5, 5.0, value=1.0, step=0.1, label="Injection Strength",
+                                                   info="⚠️ Phi-3 works best at 0.5-1.5. Values >2.0 may cause gibberish!")
 
                         with gr.Accordion("⚙️ Advanced Settings", open=False):
                             max_tokens = gr.Slider(10, 100, value=50, step=5, label="Max New Tokens")
@@ -606,7 +607,7 @@ def create_interface():
                 steer_prompt: "Tell me about artificial intelligence",
                 steer_concept: "enthusiastic",
                 steer_layer: 16,
-                steer_strength: 2.5
+                steer_strength: 1.0  # Safe default for Phi-3 (tested range: 0.5-1.5)
             }
 
         demo_btn.click(
