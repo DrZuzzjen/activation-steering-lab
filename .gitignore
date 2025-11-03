@@ -1,0 +1,44 @@
+.github/instructions/kluster-code-verify.instructions.md
+.kluster
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Saved vectors and models
+activation_steering_lab/saved_vectors/*.pt
+activation_steering_lab/saved_vectors/*.json
+activation_steering_lab/test_vectors/
+
+# Model cache (HuggingFace models stored here)
+.cache/
+models/
+activation_steering_lab/models_cache/*
+!activation_steering_lab/models_cache/README.md
+
+# Gradio
+gradio_cached_examples/
+flagged/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
