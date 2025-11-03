@@ -20,6 +20,8 @@ from activation_steering_lab.educational_content import (
     get_tips_and_tricks, EXAMPLE_PROMPTS, get_concept_pairs
 )
 from activation_steering_lab.visualization import ActivationVisualizer
+from activation_steering_lab.threejs_simple import create_threejs_html
+from activation_steering_lab.threejs_export import ThreeJSExporter
 
 
 class ActivationSteeringApp:
@@ -778,7 +780,139 @@ def create_interface():
                     ],
                 )
 
-            # Tab 4: Advanced Experiments
+            # Tab 5: 3D Brain Scan  
+            with gr.Tab("🧠 3D Brain Scan"):
+                gr.Markdown(
+                    """
+                    ## fMRI-Style 3D Visualization
+                    
+                    Explore activation steering in 3D space - see how concepts propagate through transformer layers
+                    like a medical brain scan!
+                    
+                    **Controls:**
+                    - 🖱️ **Drag** to rotate
+                    - 🔄 **Scroll** to zoom
+                    - 👁️ **Cyan layer** = Injection point
+                    """
+                )
+                
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        gr.Markdown("### Configuration")
+                        brain_prompt = gr.Textbox(
+                            value="Tell me about happiness",
+                            label="Prompt",
+                            lines=2
+                        )
+                        brain_concept = gr.Dropdown(
+                            choices=[],
+                            label="Concept",
+                            value=None
+                        )
+                        brain_layer = gr.Slider(
+                            minimum=0,
+                            maximum=31,
+                            value=16,
+                            step=1,
+                            label="Injection Layer"
+                        )
+                        brain_strength = gr.Slider(
+                            minimum=0.5,
+                            maximum=5.0,
+                            value=2.0,
+                            step=0.5,
+                            label="Strength"
+                        )
+                        visualize_3d_btn = gr.Button("🧠 Generate 3D Brain Scan", variant="primary", size="lg")
+                        
+                        gr.Markdown("### Load Sample Data")
+                        load_sample_btn = gr.Button("📁 Load Pre-generated Sample", size="sm")
+                    
+                    with gr.Column(scale=2):
+                        brain_viewer = gr.HTML(label="3D Brain Visualization")
+                
+                def generate_3d_visualization(prompt, concept, layer_idx, strength):
+                    """Generate 3D brain visualization."""
+                    if not app.initialized:
+                        return "<p style='color:red;'>Please initialize model first</p>"
+                    
+                    try:
+                        # Capture activations
+                        normal_text, steered_text, normal_acts, steered_acts, tokens = (
+                            app.visualizer.capture_activations_for_comparison(
+                                prompt=prompt,
+                                concept_name=concept,
+                                layer_idx=int(layer_idx),
+                                strength=float(strength),
+                                max_new_tokens=30,
+                                temperature=0.7,
+                            )
+                        )
+                        
+                        # Export to Three.js format
+                        exporter = ThreeJSExporter()
+                        metadata = {
+                            "model_name": app.model.model_name,
+                            "prompt": prompt,
+                            "concept_name": concept,
+                            "injection_layer": int(layer_idx),
+                            "injection_strength": float(strength),
+                        }
+                        
+                        # Create in-memory data structure (no file saving)
+                        import json
+                        from pathlib import Path
+                        import tempfile
+                        
+                        # Save temporarily
+                        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                            temp_path = f.name
+                        
+                        exporter.save_activations_for_threejs(
+                            normal_acts=normal_acts,
+                            steered_acts=steered_acts,
+                            tokens=tokens,
+                            metadata=metadata,
+                            filename=Path(temp_path).name,
+                        )
+                        
+                        # Load and create HTML
+                        with open(temp_path, 'r') as f:
+                            activation_data = json.load(f)
+                        
+                        html = create_threejs_html(activation_data)
+                        
+                        # Cleanup
+                        Path(temp_path).unlink()
+                        
+                        return html
+                        
+                    except Exception as e:
+                        return f"<p style='color:red;'>Error: {str(e)}</p>"
+                
+                def load_sample_visualization():
+                    """Load pre-generated sample data."""
+                    try:
+                        import json
+                        sample_path = "activation_steering_lab/mocked_data/happy_layer16_20251103_161946.json"
+                        with open(sample_path, 'r') as f:
+                            activation_data = json.load(f)
+                        return create_threejs_html(activation_data)
+                    except Exception as e:
+                        return f"<p style='color:red;'>Error loading sample: {str(e)}</p>"
+                
+                visualize_3d_btn.click(
+                    fn=generate_3d_visualization,
+                    inputs=[brain_prompt, brain_concept, brain_layer, brain_strength],
+                    outputs=brain_viewer
+                )
+                
+                load_sample_btn.click(
+                    fn=load_sample_visualization,
+                    outputs=brain_viewer
+                )
+
+            # Tab 6: Advanced Experiments
             with gr.Tab("🔬 Advanced Experiments"):
                 gr.Markdown("## Advanced Steering Experiments")
 
@@ -913,8 +1047,10 @@ def create_interface():
                     gr.Dropdown(choices=concepts, value=concepts[0] if concepts else None),
                     gr.Dropdown(choices=concepts, value=concepts[0] if concepts else None),
                     gr.Dropdown(choices=concepts, value=concepts[0] if concepts else None),
+                    gr.Dropdown(choices=concepts, value=concepts[0] if concepts else None),
                 ]
             return [
+                gr.Dropdown(choices=[]),
                 gr.Dropdown(choices=[]),
                 gr.Dropdown(choices=[]),
                 gr.Dropdown(choices=[]),
@@ -934,7 +1070,7 @@ def create_interface():
             outputs=init_status
         ).then(
             fn=update_all_dropdowns,
-            outputs=[steer_concept, layer_concept, strength_concept, viz_concept]
+            outputs=[steer_concept, layer_concept, strength_concept, viz_concept, brain_concept]
         )
 
     return demo
