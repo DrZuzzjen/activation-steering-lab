@@ -13,10 +13,10 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # 4. Setup local model cache (avoids re-downloading)
-./setup_local_cache.sh
+scripts/setup_local_cache.sh
 
 # 5. Test the setup
-python test_setup.py
+python -m pytest tests/test_setup.py -v
 ```
 
 **Note**: Step 4 creates a local cache for models. If you've already downloaded Mistral-7B or Phi-3, it will symlink them instead of re-downloading (~14GB saved!).
@@ -25,7 +25,7 @@ python test_setup.py
 
 ```bash
 # Option 1: Use the launch script
-./run.sh
+scripts/run.sh
 
 # Option 2: Manual launch
 source venv/bin/activate
@@ -157,7 +157,7 @@ Combine multiple concepts:
 pip install --upgrade -r requirements.txt
 
 # Test setup
-python test_setup.py
+python -m pytest tests/test_setup.py -v
 ```
 
 ## Learning Path

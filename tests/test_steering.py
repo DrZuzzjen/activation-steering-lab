@@ -7,8 +7,8 @@ WITHOUT Gradio - just pure Python
 import sys
 from pathlib import Path
 
-# Add to path
-sys.path.insert(0, str(Path(__file__).parent))
+# Add to path - updated for new tests/ directory structure
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 def test_steering():
     """Test activation steering with a simple example."""

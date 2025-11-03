@@ -74,8 +74,10 @@ activation_layers/
 │   └── test_vectors/            # Test data
 ├── venv/                        # Virtual environment
 ├── requirements.txt             # Dependencies
-├── test_setup.py               # Verification script
-├── run.sh                      # Launch script
+├── tests/
+│   └── test_setup.py               # Verification script
+├── scripts/
+│   └── run.sh                      # Launch script
 ├── README.md                   # Full documentation
 ├── QUICKSTART.md               # Getting started guide
 └── PROJECT_SUMMARY.md          # This file
@@ -279,7 +281,7 @@ After using this tool, users understand:
 
 ## Testing
 
-### Automated Tests (`test_setup.py`)
+### Automated Tests (`tests/test_setup.py`)
 - ✅ Import verification
 - ✅ Vector library operations
 - ✅ Educational content loading

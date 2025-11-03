@@ -80,28 +80,40 @@ The model is being loaded into memory...
             progress(0.55, desc="📦 Loading saved concept vectors...")
             yield f"✓ Model loaded: {self.model.model_name}\n✓ Engine ready\n\n📦 Loading saved vectors from disk..."
 
+            # Load any existing vectors first
             try:
                 self.library.load_all()
-                num_loaded = len(self.library.list_concepts())
+            except:
+                pass  # No saved vectors yet
 
-                if num_loaded > 0:
-                    # Vectors loaded successfully from disk
-                    progress(0.85, desc=f"✓ Loaded {num_loaded} concepts from cache")
-                    yield f"✓ Model loaded\n✓ Engine ready\n✓ Loaded {num_loaded} concepts from cache!\n\n⚡ All vectors loaded instantly from disk"
+            # Check if we have complete extraction (17 concepts × 3 layers = 51 vectors)
+            from activation_steering_lab.educational_content import get_concept_pairs
+            all_concept_pairs = []
+            for category, pairs in get_concept_pairs().items():
+                all_concept_pairs.extend(pairs)
+
+            expected_concepts = len(all_concept_pairs)  # 17
+            expected_layers = len(recommended[:3])      # 3
+            expected_total = expected_concepts * expected_layers  # 51
+
+            # Count existing vectors
+            num_concepts = len(self.library.list_concepts())
+            num_vectors = sum(len(layers) for layers in self.library.vectors.values())
+
+            if num_vectors >= expected_total:
+                # Complete extraction exists
+                progress(0.85, desc=f"✓ Loaded {num_concepts} concepts from cache")
+                yield f"✓ Model loaded\n✓ Engine ready\n✓ Loaded {num_concepts} concepts ({num_vectors} vectors) from cache!\n\n⚡ All vectors loaded instantly from disk"
+            else:
+                # Incomplete or no extraction - need to extract missing ones
+                if num_vectors > 0:
+                    yield f"✓ Model loaded\n✓ Engine ready\n\n⚠️  Found {num_vectors}/{expected_total} vectors\n🎨 Extracting missing concepts...\nThis will take ~3 minutes"
                 else:
-                    # No saved vectors, extract them
-                    raise FileNotFoundError("No saved vectors found")
-
-            except Exception as e:
-                # Fall back to extracting concepts
-                progress(0.55, desc="🎨 No cache found, extracting concepts...")
-                yield f"✓ Model loaded\n✓ Engine ready\n\n🎨 No saved vectors found, extracting...\nThis will take ~3 minutes (only once)"
+                    yield f"✓ Model loaded\n✓ Engine ready\n\n🎨 No saved vectors found, extracting...\nThis will take ~3 minutes (only once)"
 
                 # Extract concepts with progress updates
-                from activation_steering_lab.educational_content import get_concept_pairs
-                all_concepts = []
-                for category, pairs in get_concept_pairs().items():
-                    all_concepts.extend(pairs)
+                progress(0.55, desc="🎨 Extracting concepts...")
+                all_concepts = all_concept_pairs  # Already loaded above
 
                 total_extractions = len(all_concepts) * len(recommended[:3])
                 current = 0
@@ -168,6 +180,14 @@ Go to the "Steering Playground" tab to try it out!
             return []
         return self.library.list_concepts()
 
+    def get_available_layers(self, concept_name):
+        """Get list of layers where this concept is available."""
+        if not self.initialized or not concept_name:
+            return []
+        if concept_name not in self.library.vectors:
+            return []
+        return sorted(list(self.library.vectors[concept_name].keys()))
+
     def create_custom_concept(self, name, concept_prompt, baseline_prompt, layer_idx, progress=gr.Progress()):
         """Create a custom concept vector."""
         if not self.initialized:
@@ -211,6 +231,22 @@ Concept saved and ready to use!
             return "Initialize model first", "Initialize model first", ""
 
         try:
+            # Validate concept is available at this layer
+            available_layers = self.get_available_layers(concept)
+            if not available_layers:
+                return f"❌ Concept '{concept}' not found", "", f"❌ Concept '{concept}' not loaded. Click 'Initialize Model & Library' first."
+
+            if int(layer_idx) not in available_layers:
+                return (
+                    f"❌ Invalid layer selection",
+                    "",
+                    f"❌ **Concept '{concept}' not available at layer {layer_idx}**\n\n"
+                    f"✓ Available layers: {available_layers}\n\n"
+                    f"💡 **Tip**: Either:\n"
+                    f"1. Change layer slider to one of: {available_layers}\n"
+                    f"2. Or extract '{concept}' for layer {layer_idx} in the 'Create Concepts' tab"
+                )
+
             progress(0, desc="Generating normal output...")
 
             # Generate comparison
@@ -473,6 +509,10 @@ def create_interface():
                             info="Will populate after initialization",
                             interactive=True
                         )
+
+                        # Info box showing available layers for selected concept
+                        concept_layer_info = gr.Markdown("*Select a concept to see available layers*")
+
                         steer_layer = gr.Slider(0, 31, value=16, step=1, label="Injection Layer")
                         steer_strength = gr.Slider(0.5, 5.0, value=1.0, step=0.1, label="Injection Strength",
                                                    info="⚠️ Phi-3 works best at 0.5-1.5. Values >2.0 may cause gibberish!")
@@ -615,6 +655,17 @@ def create_interface():
             outputs=[steer_prompt, steer_concept, steer_layer, steer_strength]
         )
 
+        # Show available layers for selected concept
+        def show_concept_layers(concept_name):
+            if not concept_name or not app.initialized:
+                return "*Select a concept to see available layers*"
+
+            layers = app.get_available_layers(concept_name)
+            if not layers:
+                return f"❌ Concept '{concept_name}' not found"
+
+            return f"✓ **'{concept_name}' available at layers**: {layers}\n\n💡 Adjust the layer slider to one of these values"
+
         # Update all concept dropdowns after initialization
         def update_all_dropdowns():
             if app.initialized:
@@ -630,6 +681,13 @@ def create_interface():
                 gr.Dropdown(choices=[]),
                 gr.Dropdown(choices=[])
             ]
+
+        # Update layer info when concept is selected
+        steer_concept.change(
+            fn=show_concept_layers,
+            inputs=steer_concept,
+            outputs=concept_layer_info
+        )
 
         # Bind init button: chain initialization then update dropdowns
         init_btn.click(

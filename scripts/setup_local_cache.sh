@@ -5,6 +5,9 @@
 echo "🔗 Setting up local model cache..."
 echo ""
 
+# Change to project root directory (since script is now in scripts/)
+cd "$(dirname "$0")/.."
+
 # Define paths
 GLOBAL_CACHE="$HOME/.cache/huggingface/hub"
 LOCAL_CACHE="activation_steering_lab/models_cache"

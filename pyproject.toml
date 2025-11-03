@@ -1,0 +1,93 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "activation-steering-lab"
+version = "1.0.0"
+description = "An interactive educational tool to understand and experiment with activation steering in large language models"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Activation Steering Lab", email = "activation-steering-lab@example.com"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Education",
+]
+keywords = ["machine learning", "ai", "language models", "activation steering", "education"]
+requires-python = ">=3.9"
+dependencies = [
+    "torch>=2.0.0",
+    "transformers>=4.35.0",
+    "accelerate>=0.24.0",
+    "gradio>=4.0.0",
+    "numpy>=1.24.0",
+    "safetensors>=0.4.0",
+    "sentencepiece>=0.1.99",
+    "protobuf>=3.20.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/example/activation-steering-lab"
+"Bug Reports" = "https://github.com/example/activation-steering-lab/issues"
+"Source" = "https://github.com/example/activation-steering-lab"
+"Documentation" = "https://github.com/example/activation-steering-lab/blob/main/README.md"
+
+[project.scripts]
+activation-steering-lab = "activation_steering_lab.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["activation_steering_lab*"]
+
+[tool.setuptools.package-data]
+activation_steering_lab = ["saved_vectors/*", "test_vectors/*"]
+
+[tool.black]
+line-length = 88
+target-version = ['py39']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"

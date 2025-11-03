@@ -35,7 +35,7 @@ model = AutoModelForCausalLM.from_pretrained(
 Instead of duplicating models, we create **symlinks**:
 
 ```bash
-./setup_local_cache.sh
+scripts/setup_local_cache.sh
 ```
 
 This script:
@@ -56,7 +56,7 @@ If you already have Mistral-7B downloaded:
 
 ```bash
 # One-time setup
-./setup_local_cache.sh
+scripts/setup_local_cache.sh
 ```
 
 ✅ **Result**: Instant model loading, no re-download!
@@ -66,7 +66,7 @@ If you don't have the model yet:
 
 ```bash
 # Just run the app
-./run.sh
+scripts/run.sh
 
 # Click "Initialize Model & Library"
 # Model will download to local cache (~5-10 min first time)

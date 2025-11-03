@@ -53,10 +53,10 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Setup local model cache (avoids re-downloading 14GB!)
-./setup_local_cache.sh
+scripts/setup_local_cache.sh
 ```
 
-**Important**: The `setup_local_cache.sh` script creates symlinks to any already-downloaded HuggingFace models in your global cache. This avoids re-downloading Mistral-7B (~14GB) if you already have it!
+**Important**: The `scripts/setup_local_cache.sh` script creates symlinks to any already-downloaded HuggingFace models in your global cache. This avoids re-downloading Mistral-7B (~14GB) if you already have it!
 
 ## Quick Start
 
@@ -75,6 +75,56 @@ The Gradio interface will open in your browser at `http://127.0.0.1:7860`
 1. **Click "Initialize Model & Library"** - This loads Mistral-7B and creates concept vectors (~5 min)
 2. **Explore the Layer Education tab** - Learn how layers work
 3. **Try the Steering Playground** - Generate text with steering!
+
+## Project Structure
+
+```
+activation_layers/
+├── 📁 activation_steering_lab/    # Main package
+│   ├── __init__.py
+│   ├── main.py                    # Gradio interface
+│   ├── model_wrapper.py           # Model loading & generation
+│   ├── vector_library.py          # Concept vector management
+│   ├── injection_engine.py        # Activation steering logic
+│   ├── educational_content.py     # Tutorials & explanations
+│   ├── models_cache/              # Cached models
+│   └── saved_vectors/             # Pre-computed concept vectors
+├── 📁 tests/                      # Test suite
+│   ├── test_setup.py              # Verify installation
+│   ├── test_cache.py              # Test model cache
+│   ├── test_steering.py           # Test steering without UI
+│   └── test_strengths.py          # Test different steering strengths
+├── 📁 scripts/                    # Utility scripts
+│   ├── run.sh                     # Launch application
+│   └── setup_local_cache.sh       # Setup model cache
+├── 📁 docs/                       # Documentation
+│   ├── QUICKSTART.md              # Quick setup guide
+│   ├── CACHE_SETUP.md             # Model caching guide
+│   ├── PROJECT_SUMMARY.md         # Technical overview
+│   └── claude.md                  # Development notes
+├── requirements.txt               # Python dependencies
+├── pyproject.toml                # Modern Python packaging
+└── README.md                     # This file
+```
+
+### Running Tests
+
+```bash
+# Test basic setup
+python tests/test_setup.py
+
+# Test model cache
+python tests/test_cache.py
+
+# Test steering (loads full model)
+python tests/test_steering.py
+
+# Test different strengths
+python tests/test_strengths.py
+
+# Or run all tests with pytest
+python -m pytest tests/ -v
+```
 
 ## How to Use
 

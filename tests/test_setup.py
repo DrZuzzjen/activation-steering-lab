@@ -6,8 +6,8 @@ This tests the core functionality without loading the full model.
 import sys
 from pathlib import Path
 
-# Add to path
-sys.path.insert(0, str(Path(__file__).parent))
+# Add to path - updated for new tests/ directory structure
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 def test_imports():
     """Test that all modules can be imported."""

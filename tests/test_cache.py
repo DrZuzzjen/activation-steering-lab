@@ -5,8 +5,8 @@ Test script to verify local model cache is working
 import sys
 from pathlib import Path
 
-# Add to path
-sys.path.insert(0, str(Path(__file__).parent))
+# Add to path - updated for new tests/ directory structure
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 def test_cache():
     """Test that the cache directory is set up correctly."""
@@ -48,13 +48,13 @@ def test_cache():
     else:
         print(f"\n⚠️  No cached models found")
         print(f"  This is OK - models will download on first use")
-        print(f"  Run ./setup_local_cache.sh to link existing models")
+        print(f"  Run scripts/setup_local_cache.sh to link existing models")
 
     # Test that we can instantiate the tokenizer with cache
     print(f"\n✓ Cache configuration is correct")
     print(f"\nNext steps:")
-    print(f"  1. Run: ./setup_local_cache.sh (if not done)")
-    print(f"  2. Run: python -m activation_steering_lab.main")
+    print(f"  1. Run: scripts/setup_local_cache.sh (if not done)")
+    print(f"  2. Run: scripts/run.sh")
     print(f"  3. Click 'Initialize Model & Library'")
     print(f"  4. Model will load from cache (fast!)")
 

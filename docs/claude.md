@@ -28,10 +28,13 @@ activation_layers/
 │   ├── educational_content.py     # Learning materials and explanations
 │   ├── models_cache/              # Local HuggingFace model cache (symlinked)
 │   └── saved_vectors/             # Pre-computed concept vectors (51 vectors: 17 concepts × 3 layers)
-├── test_steering.py               # CLI test script (no Gradio)
-├── test_cache.py                  # Verify cache setup
-├── setup_local_cache.sh           # Create symlinks to avoid re-downloading models
-├── run.sh                         # Launch script
+├── tests/
+│   ├── test_setup.py              # Verification script
+│   ├── test_steering.py           # CLI test script (no Gradio)
+│   └── test_cache.py              # Verify cache setup
+├── scripts/
+│   ├── setup_local_cache.sh       # Create symlinks to avoid re-downloading models
+│   └── run.sh                     # Launch script
 ├── requirements.txt               # Python dependencies
 ├── README.md                      # User documentation
 ├── QUICKSTART.md                  # 5-minute setup guide
@@ -90,7 +93,7 @@ activation_layers/
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-./setup_local_cache.sh  # Symlink existing models
+scripts/setup_local_cache.sh  # Symlink existing models
 ```
 
 ## Known Issues & Solutions
@@ -196,12 +199,12 @@ activation_steering_lab/models_cache/
 
 **Setup**:
 ```bash
-./setup_local_cache.sh
+scripts/setup_local_cache.sh
 ```
 
 **Verification**:
 ```bash
-python test_cache.py
+python tests/test_cache.py
 ```
 
 **Benefits**:
@@ -240,7 +243,7 @@ Located in `activation_steering_lab/saved_vectors/`:
 
 ### CLI Testing (No Gradio)
 ```bash
-python test_steering.py
+python tests/test_steering.py
 ```
 
 This tests:
@@ -251,7 +254,7 @@ This tests:
 
 ### Gradio Interface
 ```bash
-./run.sh
+scripts/run.sh
 ```
 
 **Tabs**:
@@ -272,8 +275,8 @@ This tests:
 7. Vector saved automatically to `saved_vectors/`
 
 ### Debugging
-- Check cache: `python test_cache.py`
-- Test steering: `python test_steering.py`
+- Check cache: `python tests/test_cache.py`
+- Test steering: `python tests/test_steering.py`
 - View logs: Model loading prints detailed progress
 - Check vectors: `ls -lh activation_steering_lab/saved_vectors/`
 
