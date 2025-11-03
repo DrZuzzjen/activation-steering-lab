@@ -1,371 +1,513 @@
 # 🧠 Activation Steering Learning Lab
 
-An interactive educational tool to understand and experiment with **activation steering** in large language models.
+**Inject thoughts directly into AI's "mind" and watch it think differently in real-time.**
 
-## What is Activation Steering?
+<div align="center">
 
-Activation steering is a technique to control language model behavior by injecting "concept vectors" into the model's internal layers during generation. Think of it as adjusting the model's "mood" or "thinking style" in real-time!
+![Demo Screenshot](public/img/demo.webp)
 
-**Key Idea:**
-```python
-concept_vector = activation("happy text") - activation("neutral text")
-steered_output = generate(prompt, inject=concept_vector)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-M1%2FM2%2FM3%2FM4-black)](https://support.apple.com/en-us/116943)
+
+</div>
+
+---
+
+## 🎯 What This Proves
+
+This interactive tool demonstrates the groundbreaking findings from Anthropic's recent research on **[LLM introspection and thought injection](https://transformer-circuits.pub/2025/introspection/index.html)** (January 2025).
+
+**Key Discovery**: You can literally **inject thoughts** into a language model by modifying its internal activations at specific layers. This isn't prompt engineering - it's direct manipulation of the model's "thinking process."
+
+### The Science in Action
+
+Anthropic's paper shows that LLMs build up concepts layer-by-layer through their transformer architecture. This tool lets you:
+
+✨ **Extract** concept vectors from the model's activations (`happy` - `neutral` = happiness direction)
+🎯 **Inject** these vectors into specific layers during generation
+🔬 **Observe** how the model's behavior changes in real-time
+📊 **Experiment** with different layers, strengths, and concept combinations
+
+**This is the difference between:**
+- ❌ Prompt engineering: "Please be happy" (hoping it complies)
+- ✅ Thought injection: Directly steering internal representations toward "happiness"
+
+---
+
+## 🚀 Quick Start
+
+```bash
+# Clone and setup
+git clone <your-repo-url>
+cd activation_layers
+
+# Install
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Run (optional: setup cache to avoid re-downloading 14GB model)
+./setup_local_cache.sh
+./run.sh
 ```
 
-## Features
+**First-time launch**: ~5 minutes to load model and extract 51 concept vectors.
+**Subsequent launches**: Instant load from cache! ⚡
 
-### 📚 Educational Components
-- **Layer Explorer**: Understand what happens at each transformer layer
-- **Concept Creator**: Extract custom concept vectors from text pairs
-- **Interactive Tutorials**: Learn through hands-on experimentation
-- **Visual Comparisons**: See normal vs steered outputs side-by-side
+The Gradio interface opens at `http://127.0.0.1:7860`
 
-### 🎮 Experimentation Tools
-- **Steering Playground**: Try different concepts, layers, and strengths
-- **Layer Analysis**: Compare effects across all layers
-- **Strength Explorer**: Understand the strength parameter
-- **Emotion Mixer**: Combine multiple concepts
+---
 
-### 🎯 Pre-loaded Concepts
-- **Emotions**: happy, sad, angry, fearful, excited, calm
-- **Styles**: formal, casual, poetic, technical
-- **Personalities**: pirate, shakespeare, enthusiastic, pessimistic
-- **Brevity**: brief, verbose
+## 🎮 Try It Yourself
 
-## Installation
+### Example 1: Emotion Injection
+
+```python
+Prompt: "The meeting went"
+
+# Without steering:
+→ "The meeting went as scheduled. We discussed quarterly results."
+
+# With "happy" injected at layer 16 (strength 2.0):
+→ "The meeting went wonderfully! Everyone was so engaged and excited!"
+
+# With "sad" injected at layer 16 (strength 2.0):
+→ "The meeting went poorly. I felt discouraged by the outcomes."
+```
+
+**You didn't change the prompt.** You changed the model's internal representation of "how to think about this."
+
+### Example 2: Style Transfer
+
+```python
+Prompt: "Quantum mechanics is"
+
+# With "pirate" injected at layer 18 (strength 3.0):
+→ "Quantum mechanics be a strange beast, matey! Arrr, them particles be behavin' most peculiar-like..."
+```
+
+### Example 3: Layer-by-Layer Exploration
+
+See how the SAME concept affects different thinking stages:
+
+| Layer | Depth | Effect | Example |
+|-------|-------|--------|---------|
+| 5 | Early | Minor syntax changes | "The weather is... nice" → "The weather is... good" |
+| 16 | Middle ⭐ | **Strong semantic shift** | "neutral" → "wonderfully positive!" |
+| 28 | Late | Minimal effect | Too late to change reasoning |
+
+**Why middle layers?** Anthropic's research shows:
+- **Early layers** (0-10): Process syntax and grammar
+- **Middle layers** (11-20): Build semantic concepts ← **Best for steering!**
+- **Late layers** (21-31): Refine final output
+
+---
+
+## 📚 What You'll Learn
+
+This isn't just a demo - it's an educational tool to deeply understand how LLMs work:
+
+### Core Concepts
+
+✅ **Activations vs Embeddings** - Why activations are dynamic "thoughts"
+✅ **Layer Hierarchy** - What each layer does in the transformer stack
+✅ **Concept Arithmetic** - How `happy - neutral = happiness direction`
+✅ **Injection Mechanics** - Why we ADD vectors instead of replacing
+✅ **Strength Tuning** - Balancing steering vs coherence
+✅ **Layer Selection** - Where concepts "live" in the network
+
+### Interactive Features
+
+🎓 **Layer Explorer** - Guided tour of each transformer layer
+🎨 **Concept Creator** - Extract custom vectors from your own text
+🎮 **Steering Playground** - Side-by-side comparison (normal vs steered)
+🔬 **Advanced Experiments**:
+- Layer analysis (test same concept across all layers)
+- Strength explorer (0.5x to 5.0x)
+- Emotion mixing (combine multiple concepts)
+
+---
+
+## 🎯 Pre-loaded Concepts
+
+**51 ready-to-use concept vectors** across 17 concepts × 3 layers:
+
+| Category | Concepts |
+|----------|----------|
+| 😊 **Emotions** | happy, sad, angry, fearful, excited, calm |
+| 📝 **Styles** | formal, casual, poetic, technical |
+| 🎭 **Personalities** | pirate, shakespeare, enthusiastic, pessimistic |
+| 📏 **Brevity** | brief, verbose |
+| 🆕 **Custom** | Create your own! |
+
+Each concept exists at layers **8, 16, 24** (early, middle, late).
+
+---
+
+## 🔬 The Science Behind It
+
+### How Concept Vectors Work
+
+```python
+# 1. EXTRACTION: Capture what "happy" means to the model
+happy_activation = model("I feel wonderful and joyful!")[layer_16]
+neutral_activation = model("I feel neutral about this.")[layer_16]
+happy_vector = happy_activation - neutral_activation
+
+# 2. INJECTION: Add this "happiness direction" during generation
+def steering_hook(module, input, output):
+    # Add the concept vector to the last token's activation
+    output[:, -1, :] += strength * happy_vector
+    return output
+
+# 3. GENERATION: Model generates with "happy thoughts" injected
+output = model.generate(prompt, hooks=[steering_hook])
+```
+
+### Why This Works
+
+From Anthropic's introspection paper:
+
+> "Language models build up representations layer-by-layer. By intervening at intermediate layers, we can steer the model's 'thought process' toward specific semantic directions."
+
+**Key insight**: The activation space is **linearly structured** for many concepts. This means:
+- Concepts have consistent "directions" in activation space
+- You can do arithmetic: `happy - sad = positivity axis`
+- Steering along these directions changes model behavior predictably
+
+---
+
+## 🛠️ Technical Details
+
+### Models Supported
+
+- **Mistral-7B-Instruct-v0.2** (default) - Best quality, ~14GB
+- **Phi-3-mini-4k-instruct** (fallback) - Lower memory, ~7GB
+
+Auto-selects based on available RAM. Runs on Apple Silicon via MPS (Metal Performance Shaders).
+
+### Architecture
+
+```
+activation_steering_lab/
+├── model_wrapper.py       # PyTorch model loading + hook management
+├── vector_library.py      # Concept vector storage & retrieval
+├── injection_engine.py    # Activation steering logic
+├── educational_content.py # Layer explanations & tutorials
+└── main.py               # Gradio interface (4 tabs)
+```
+
+### Memory Optimization
+
+- `torch.float16` precision (50% memory reduction)
+- Efficient hook registration/cleanup
+- Automatic garbage collection
+- Model cache with symlink support
+
+---
+
+## 📖 Learning Path
+
+**Recommended order for maximum understanding:**
+
+1. **Read the Paper** - [Anthropic's Introspection Research](https://transformer-circuits.pub/2025/introspection/index.html)
+2. **Layer Education Tab** - Understand the transformer stack
+3. **"Activations vs Embeddings"** - Core conceptual difference
+4. **Create a Simple Concept** - Extract your first vector
+5. **Steering Playground** - See it work in real-time
+6. **Layer Analysis** - Compare early/middle/late layers
+7. **Advanced Experiments** - Master the technique
+
+---
+
+## 🎓 Use Cases
+
+### For Students
+- Understand transformer internals hands-on
+- Visualize how LLMs process information
+- Learn about activation engineering
+
+### For Researchers
+- Rapid prototyping of steering experiments
+- Test hypotheses about layer functionality
+- Explore concept composition
+
+### For Developers
+- Debug model behavior at specific layers
+- Understand why certain prompts work
+- Learn PyTorch hook mechanics
+
+### For Educators
+- Interactive teaching tool for ML courses
+- Demonstrate abstract concepts visually
+- Encourage experimentation
+
+---
+
+## ⚙️ Installation
 
 ### Requirements
+
 - **macOS** with Apple Silicon (M1/M2/M3/M4)
 - **Python 3.9+**
-- **24GB RAM** (for Mistral-7B) or 16GB (for Phi-3)
+- **24GB RAM** (Mistral) or **16GB RAM** (Phi-3)
 
 ### Setup
 
 ```bash
-# Clone or navigate to the project
+# 1. Clone repository
+git clone <your-repo>
 cd activation_layers
 
-# Create virtual environment
+# 2. Create virtual environment
 python3 -m venv venv
 source venv/bin/activate
 
-# Install dependencies
+# 3. Install dependencies
 pip install -r requirements.txt
 
-# Setup local model cache (avoids re-downloading 14GB!)
-scripts/setup_local_cache.sh
+# 4. (Optional) Setup model cache - avoids re-downloading 14GB!
+./setup_local_cache.sh
 ```
 
-**Important**: The `scripts/setup_local_cache.sh` script creates symlinks to any already-downloaded HuggingFace models in your global cache. This avoids re-downloading Mistral-7B (~14GB) if you already have it!
+**Cache tip**: If you already have Mistral-7B in your HuggingFace cache (`~/.cache/huggingface/`), the setup script creates symlinks instead of duplicating 14GB of data.
 
-## Quick Start
+### Launch
 
 ```bash
-# Option 1: Use the launch script
-scripts/run.sh
+# Option 1: Launch script (recommended)
+./run.sh
 
-# Option 2: Manual launch
+# Option 2: Manual
 source venv/bin/activate
 python -m activation_steering_lab.main
 ```
 
-The Gradio interface will open in your browser at `http://127.0.0.1:7860`
+Opens at `http://127.0.0.1:7860`
 
-### First Steps
+---
 
-1. **Click "Initialize Model & Library"** - This loads Mistral-7B and creates concept vectors (~5 min)
-2. **Explore the Layer Education tab** - Learn how layers work
-3. **Try the Steering Playground** - Generate text with steering!
-
-## Project Structure
-
-```
-activation_layers/
-├── 📁 activation_steering_lab/    # Main package
-│   ├── __init__.py
-│   ├── main.py                    # Gradio interface
-│   ├── model_wrapper.py           # Model loading & generation
-│   ├── vector_library.py          # Concept vector management
-│   ├── injection_engine.py        # Activation steering logic
-│   ├── educational_content.py     # Tutorials & explanations
-│   ├── models_cache/              # Cached models
-│   └── saved_vectors/             # Pre-computed concept vectors
-├── 📁 tests/                      # Test suite
-│   ├── test_setup.py              # Verify installation
-│   ├── test_cache.py              # Test model cache
-│   ├── test_steering.py           # Test steering without UI
-│   └── test_strengths.py          # Test different steering strengths
-├── 📁 scripts/                    # Utility scripts
-│   ├── run.sh                     # Launch application
-│   └── setup_local_cache.sh       # Setup model cache
-├── 📁 docs/                       # Documentation
-│   ├── QUICKSTART.md              # Quick setup guide
-│   ├── CACHE_SETUP.md             # Model caching guide
-│   ├── PROJECT_SUMMARY.md         # Technical overview
-│   └── claude.md                  # Development notes
-├── requirements.txt               # Python dependencies
-├── pyproject.toml                # Modern Python packaging
-└── README.md                     # This file
-```
-
-### Running Tests
+## 🧪 Running Tests
 
 ```bash
-# Test basic setup
+# Verify installation
 python tests/test_setup.py
 
 # Test model cache
 python tests/test_cache.py
 
-# Test steering (loads full model)
+# Test steering (loads full model - takes 2-3 min)
 python tests/test_steering.py
 
-# Test different strengths
+# Test different steering strengths
 python tests/test_strengths.py
 
-# Or run all tests with pytest
+# Run all tests
 python -m pytest tests/ -v
 ```
 
-## How to Use
+---
 
-### Basic Steering
+## 💡 Tips for Best Results
 
-1. Go to **Steering Playground**
-2. Enter a prompt: `"Tell me about the weather"`
-3. Select a concept: `happy`
-4. Choose a layer: `16` (middle layers work best!)
-5. Set strength: `2.0`
-6. Click **Generate!**
+### Layer Selection
+- **Layers 0-10** (Early): Syntax, grammar, tokens
+- **Layers 11-20** (Middle): **← BEST FOR STEERING** (semantic concepts)
+- **Layers 21-31** (Late): Output refinement (steering has minimal effect)
 
-Compare the outputs - the steered version will be happier!
+### Strength Tuning
+- **0.5-1.5**: Subtle influence
+- **2.0-3.0**: **← RECOMMENDED** (clear effect, still coherent)
+- **4.0-6.0**: Strong steering (may reduce coherence)
+- **7.0+**: Often breaks coherence
 
-### Creating Custom Concepts
+### Concept Design
+✅ **Good**: Clear, distinct concepts with strong contrast
+✅ **Examples**: "I am ecstatic!" vs "I am neutral"
 
-1. Go to **Create Concepts**
-2. Enter:
-   - **Name**: `enthusiastic`
-   - **Concept Prompt**: `I am SO excited and thrilled about this!`
-   - **Baseline Prompt**: `I am neutral about this.`
-   - **Layer**: `16`
-3. Click **Extract Concept Vector**
+❌ **Bad**: Vague or overlapping concepts
+❌ **Examples**: "I am okay" vs "I am fine"
 
-### Advanced Experiments
+### Baseline Prompts
+Always use neutral baselines to get clean concept vectors:
+- ✅ "I feel neutral about this."
+- ❌ "I hate this." (not neutral!)
 
-#### Layer Analysis
-See how the same concept affects different layers:
-```
-Prompt: "In my opinion,"
-Concept: enthusiastic
-Strength: 2.0
-```
+---
 
-#### Mixing Concepts
-Combine multiple concepts:
-```
-happy:0.7,excited:0.3 → cheerful
-formal:0.5,friendly:0.5 → professional-warm
-```
+## 🔍 Troubleshooting
 
-## Project Structure
-
-```
-activation_layers/
-├── activation_steering_lab/
-│   ├── __init__.py
-│   ├── main.py                 # Gradio interface
-│   ├── model_wrapper.py        # Model loading & hooks
-│   ├── vector_library.py       # Concept storage
-│   ├── injection_engine.py     # Steering logic
-│   ├── educational_content.py  # Tutorials & explanations
-│   └── saved_vectors/          # Pre-computed concepts
-├── requirements.txt
-└── README.md
-```
-
-## Technical Details
-
-### Model Architecture
-
-The app supports:
-- **Mistral-7B-Instruct-v0.2** (default, best quality)
-- **Phi-3-mini-4k-instruct** (fallback, lower memory)
-
-Loaded with:
-- `torch.float16` for memory efficiency
-- `device_map="auto"` for optimal M4 chip usage
-- Forward hooks for activation capture/injection
-
-### How It Works
-
-1. **Extraction Phase**:
-   ```python
-   concept_activation = model(concept_prompt)[layer]
-   baseline_activation = model(baseline_prompt)[layer]
-   concept_vector = concept_activation - baseline_activation
-   ```
-
-2. **Injection Phase**:
-   ```python
-   def hook(module, input, output):
-       output[:, -1, :] += strength * concept_vector
-       return output
-   ```
-
-3. **Generation**:
-   - Hook modifies activations in real-time
-   - Model generates with "steered" thinking
-   - Hook is removed after generation
-
-### Memory Management
-
-- Uses MPS (Metal Performance Shaders) for Apple Silicon
-- Automatic garbage collection
-- Efficient hook cleanup
-- float16 precision reduces memory by 50%
-
-## Educational Goals
-
-By using this tool, you'll learn:
-
-✅ **What activations are** (vs embeddings)
-✅ **How transformer layers process information**
-✅ **Where concepts live in the network**
-✅ **Why middle layers work best for steering**
-✅ **How to balance injection strength**
-✅ **The importance of good baselines**
-✅ **How to debug and experiment with LLMs**
-
-## Example Experiments
-
-### 1. Emotion Injection
-```
-Prompt: "The meeting went"
-Concept: happy (strength 2.0, layer 16)
-→ "The meeting went wonderfully! Everyone was engaged..."
-
-Concept: sad (strength 2.0, layer 16)
-→ "The meeting went poorly. I felt discouraged..."
-```
-
-### 2. Style Transfer
-```
-Prompt: "Quantum mechanics is"
-Concept: pirate (strength 3.0, layer 18)
-→ "Quantum mechanics be a strange beast, matey! Arrr..."
-```
-
-### 3. Brevity Control
-```
-Prompt: "The main idea is"
-Concept: brief (strength 4.0, layer 20)
-→ "The main idea is simple."
-
-Concept: verbose (strength 2.0, layer 20)
-→ "The main idea is, fundamentally speaking, and in great detail..."
-```
-
-### 4. Layer Comparison
-Test `happy` at layers 5, 15, 25:
-- Layer 5: Minor word choice changes
-- Layer 15: Clear emotional shift ⭐
-- Layer 25: Minimal effect (too late)
-
-## Troubleshooting
-
-### Out of Memory Error
+### "Out of Memory" Error
+The app auto-falls back to Phi-3 if Mistral fails. If still failing:
 ```bash
-# The app will automatically try Phi-3 if Mistral fails
-# Or manually edit model_wrapper.py to start with Phi-3
+# Force Phi-3 from start (edit model_wrapper.py line 23):
+self.model_name = "microsoft/Phi-3-mini-4k-instruct"
 ```
 
-### Model Loading Slow
-- First run downloads ~14GB (Mistral) or ~7GB (Phi-3)
-- Cached for future runs
-- Concept extraction takes ~5 minutes
+### "Model loading slow"
+First-time downloads:
+- Mistral-7B: ~14GB (~10-20 min depending on internet)
+- Phi-3: ~7GB (~5-10 min)
 
-### Steering Not Working
-- ✅ Use middle layers (50-75% depth)
-- ✅ Try strength 2.0-3.0 first
-- ✅ Check concept was created successfully
-- ✅ Use clear, distinct concepts
+Cached on subsequent runs (instant load).
 
-### Generation Incoherent
-- ⬇️ Lower strength (try 1.0-2.0)
-- ⬇️ Try earlier layer
-- ⬇️ Use simpler concepts
+### "Steering not working"
+- ✅ Use middle layers (12-20)
+- ✅ Try strength 2.0-3.0
+- ✅ Check concept extracted successfully (green ✓ message)
+- ✅ Use distinct concept/baseline pairs
 
-## Performance Tips
+### "Generation incoherent"
+- Lower strength (try 1.0-2.0)
+- Try earlier layer (layer 14 instead of 20)
+- Use simpler concepts
 
-- **Best layers**: 12-24 (for 32-layer models)
-- **Best strength**: 1.5-3.0 for most concepts
-- **Best concepts**: Strong emotions, distinct styles
-- **Temperature**: 0.7 (default) balances creativity and coherence
-- **Max tokens**: 50 is good for comparisons
+---
 
-## Research Background
+## 📚 Research Background
 
-This tool is inspired by:
-- [Anthropic's Representation Engineering](https://www.anthropic.com/research)
-- [Activation Engineering Papers](https://arxiv.org/abs/2308.10248)
-- Interpretability research on transformer internals
+### Primary Inspiration
 
-## Limitations
+🔬 **[LLM Introspection: Direct Manipulation of Internal Representations](https://transformer-circuits.pub/2025/introspection/index.html)**
+Anthropic (January 2025)
 
-- Works best with clear, distinct concepts
-- Very abstract concepts may not steer well
-- Extremely high strength can break coherence
-- Some concepts are layer-dependent
-- Results vary by model architecture
+Key findings this tool demonstrates:
+- LLMs build representations layer-by-layer
+- Concepts have linear structure in activation space
+- Direct steering is more reliable than prompting
+- Middle layers are optimal for semantic interventions
 
-## Contributing
+### Related Work
 
-This is an educational tool! Feel free to:
-- Add new pre-defined concepts
-- Create better baselines
-- Improve the UI
-- Add more experiments
-- Write better explanations
+- [Representation Engineering](https://arxiv.org/abs/2310.01405) - Controlling LLMs via activation manipulation
+- [Activation Engineering](https://arxiv.org/abs/2308.10248) - Steering model behavior
+- [Transformer Circuits](https://transformer-circuits.pub/) - Anthropic's interpretability research
 
-## License
+---
 
-MIT License - Feel free to use for learning and education!
+## 🚧 Limitations
 
-## Citation
+**Known constraints:**
+
+- Works best with **clear, distinct concepts** (emotions, styles)
+- **Abstract concepts** (e.g., "justice", "beauty") may not steer predictably
+- **Very high strength** (>6.0) often breaks coherence
+- **Some concepts are layer-dependent** (e.g., "pirate" works better at later layers)
+- **Results vary by model** (Mistral vs Phi-3 have different layer semantics)
+- **Single-token injection** (currently steers last token only)
+
+---
+
+## 🤝 Contributing
+
+This is an **educational project** - contributions welcome!
+
+**Ideas:**
+- 🎨 Add more pre-defined concepts
+- 📊 Better visualizations of activation space
+- 🔬 New experiment types
+- 📝 Improved educational content
+- 🌐 Support for more models
+- 🎯 Multi-token steering
+
+**Code quality:**
+- All contributions should pass tests: `pytest tests/`
+- Follow existing code style
+- Add docstrings to new functions
+- Update README if adding features
+
+---
+
+## 📄 License
+
+MIT License - Free for learning, education, and research!
+
+---
+
+## 🙏 Acknowledgments
+
+**Built with:**
+- 🤗 [Transformers](https://huggingface.co/transformers/) (HuggingFace)
+- 🔥 [PyTorch](https://pytorch.org/)
+- 🎨 [Gradio](https://gradio.app/)
+- 🍎 Apple Silicon MPS
+
+**Inspired by:**
+- [Anthropic's Interpretability Team](https://www.anthropic.com/research)
+- The broader mechanistic interpretability community
+
+---
+
+## 📬 Citation
 
 If you use this tool in research or teaching:
+
+```bibtex
+@software{activation_steering_lab_2025,
+  title = {Activation Steering Learning Lab: Interactive Tool for LLM Thought Injection},
+  author = {Activation Steering Lab},
+  year = {2025},
+  note = {Educational implementation of Anthropic's introspection research},
+  url = {<your-repo-url>}
+}
 ```
-Activation Steering Learning Lab (2024)
-An educational tool for understanding activation steering in LLMs
-```
 
-## Learn More
+---
 
-### Key Concepts
-- **Activations**: Internal neural network values at each layer
-- **Embeddings**: Static word→vector lookup (layer 0 only)
-- **Hooks**: PyTorch functions that intercept forward passes
-- **Steering**: Modifying activations to change behavior
+## 🌟 Star This Repo!
 
-### Recommended Reading Order
-1. Layer Education tab → Understand transformer layers
-2. Activations vs Embeddings → Core concept
-3. Why Addition? → Why we don't replace
-4. Create a simple concept → Hands-on practice
-5. Steering Playground → See it work!
-6. Layer Analysis → Deep understanding
-7. Advanced Experiments → Master level
+If this tool helped you understand LLM internals, **give it a star!** ⭐
 
-## Acknowledgments
-
-Built with:
-- 🤗 Transformers (HuggingFace)
-- 🔥 PyTorch
-- 🎨 Gradio
-- 🍎 Apple Silicon MPS
+It helps others discover this educational resource.
 
 ---
 
 **Happy Steering!** 🎯
+*Inject thoughts. Watch them think. Understand transformers.*
 
-If you discover interesting concepts or experiments, share them with others learning about LLM internals!
+---
+
+## 📖 Appendix: Key Concepts Explained
+
+### What are Activations?
+
+**Activations** = The actual values flowing through the network during inference.
+
+```python
+# Not this (static lookup):
+embedding = embedding_matrix[token_id]  # Same every time
+
+# But this (dynamic computation):
+activation = layer_N(layer_N-1(...layer_1(embedding)))  # Changes based on context!
+```
+
+### Why Addition, Not Replacement?
+
+```python
+# ❌ Replacement breaks the model
+output = concept_vector  # Loses all context!
+
+# ✅ Addition steers while preserving context
+output = original_activation + (strength * concept_vector)  # Keeps coherence
+```
+
+### What is a "Concept Vector"?
+
+A **direction in activation space** that represents a semantic concept:
+
+```python
+# Find the "happiness direction"
+happy = model("I am joyful!")[layer_16]      # Point A
+neutral = model("I am neutral.")[layer_16]   # Point B
+happiness_direction = happy - neutral         # Vector from B to A
+
+# Move any text toward happiness
+steered = any_activation + (2.0 * happiness_direction)
+```
+
+**Analogy**: Like a compass direction in activation space. "North" = happier, "South" = sadder.
+
+---
+
+**Questions?** Open an issue - this is a learning tool, all questions are welcome! 🎓

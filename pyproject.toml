@@ -9,7 +9,7 @@ description = "An interactive educational tool to understand and experiment with
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Activation Steering Lab", email = "activation-steering-lab@example.com"}
+    {name = "Activation Steering Lab"}
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -47,10 +47,7 @@ dev = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/example/activation-steering-lab"
-"Bug Reports" = "https://github.com/example/activation-steering-lab/issues"
-"Source" = "https://github.com/example/activation-steering-lab"
-"Documentation" = "https://github.com/example/activation-steering-lab/blob/main/README.md"
+"Documentation" = "README.md"
 
 [project.scripts]
 activation-steering-lab = "activation_steering_lab.main:main"

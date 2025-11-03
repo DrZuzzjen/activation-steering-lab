@@ -327,7 +327,7 @@ scripts/run.sh
 
 ### "ModuleNotFoundError: No module named 'activation_steering_lab'"
 - **Cause**: Not running from project root
-- **Fix**: `cd /Users/franzuzz/code/activation_layers && python -m activation_steering_lab.main`
+- **Fix**: `cd /path/to/activation_layers && python -m activation_steering_lab.main`
 
 ## Git Status
 
