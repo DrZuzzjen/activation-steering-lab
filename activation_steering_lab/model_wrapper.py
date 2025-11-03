@@ -21,7 +21,7 @@ class ModelWrapper:
     - MPS: Metal Performance Shaders - Apple's GPU acceleration
     """
 
-    def __init__(self, model_name: str = "mistralai/Mistral-7B-Instruct-v0.2", device: str = "auto", cache_dir: str = None):
+    def __init__(self, model_name: str = "microsoft/Phi-3-mini-4k-instruct", device: str = "auto", cache_dir: str = None):
         """
         Initialize the model wrapper.
 
@@ -77,25 +77,53 @@ class ModelWrapper:
 
             # Load model with float16 for memory efficiency
             print(f"  Loading model from cache (or downloading if first time)...")
-            self.model = AutoModelForCausalLM.from_pretrained(
-                self.model_name,
-                torch_dtype=torch.float16,
-                device_map=self.device,
-                low_cpu_mem_usage=True,
-                cache_dir=self.cache_dir,
-                local_files_only=False  # Allow download if not cached
-            )
+
+            # For MPS (Apple Silicon), don't use device_map - load to CPU first then move to MPS
+            # For CUDA, can use device_map="auto" for multi-GPU support
+            if self.device == "auto":
+                # Detect best device
+                if torch.backends.mps.is_available():
+                    actual_device = "mps"
+                    use_device_map = False
+                elif torch.cuda.is_available():
+                    actual_device = "cuda"
+                    use_device_map = True
+                else:
+                    actual_device = "cpu"
+                    use_device_map = False
+            else:
+                actual_device = self.device
+                use_device_map = False
+
+            if use_device_map:
+                # CUDA with multi-GPU support
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    self.model_name,
+                    torch_dtype=torch.float16,
+                    device_map="auto",
+                    low_cpu_mem_usage=True,
+                    cache_dir=self.cache_dir,
+                    local_files_only=False
+                )
+            else:
+                # MPS or single device - load to CPU first, then move
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    self.model_name,
+                    torch_dtype=torch.float16,
+                    low_cpu_mem_usage=True,
+                    cache_dir=self.cache_dir,
+                    local_files_only=False
+                )
+                # Move to target device
+                print(f"  Moving model to {actual_device}...")
+                self.model = self.model.to(actual_device)
+                print(f"  ✓ Model moved to {actual_device}")
 
             # Set to evaluation mode (disables dropout, etc.)
             self.model.eval()
 
-            # Get actual device where model was loaded
-            # When device_map="auto", we need to find where the model actually is
-            if hasattr(self.model, 'device'):
-                self.device = self.model.device
-            else:
-                # Get device from first parameter
-                self.device = next(self.model.parameters()).device
+            # Store the actual device being used
+            self.device = actual_device if not use_device_map else next(self.model.parameters()).device
 
             # Determine number of layers
             # Most models store layers in model.layers or model.transformer.h

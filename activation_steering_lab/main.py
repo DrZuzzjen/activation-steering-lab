@@ -37,10 +37,10 @@ class ActivationSteeringApp:
             progress(0.0, desc="🔧 Initializing model wrapper...")
             yield "🔧 Initializing model wrapper..."
 
-            # Try Mistral first, fall back to Phi if memory issues
+            # Try Phi-3 first (smaller, faster on M4)
             try:
-                progress(0.05, desc="📦 Loading Mistral-7B-Instruct...")
-                yield """📦 **Loading Mistral-7B-Instruct-v0.2...**
+                progress(0.05, desc="📦 Loading Phi-3-mini...")
+                yield """📦 **Loading Phi-3-mini-4k-instruct...**
 
 ⏳ This step takes 2-3 seconds (loading from cache)
 ⚠️ Progress bar will appear stuck - this is normal!
@@ -49,17 +49,17 @@ The model is being loaded into memory...
 """
 
                 self.model = ModelWrapper(
-                    model_name="mistralai/Mistral-7B-Instruct-v0.2",
+                    model_name="microsoft/Phi-3-mini-4k-instruct",
                     device="auto"
                 )
                 self.model.load_model()
 
             except Exception as e:
-                progress(0.1, desc="⚠️ Falling back to Phi-3...")
-                yield f"⚠️ Mistral failed: {e}\n\nFalling back to Phi-3-mini..."
+                progress(0.1, desc="⚠️ Falling back to Mistral...")
+                yield f"⚠️ Phi-3 failed: {e}\n\nFalling back to Mistral-7B (larger but may be slower)..."
 
                 self.model = ModelWrapper(
-                    model_name="microsoft/Phi-3-mini-4k-instruct",
+                    model_name="mistralai/Mistral-7B-Instruct-v0.2",
                     device="auto"
                 )
                 self.model.load_model()
@@ -74,40 +74,57 @@ The model is being loaded into memory...
 
             self.engine = InjectionEngine(self.model, self.library)
 
-            # Create default concepts at recommended layers with progress tracking
+            # Try to load saved vectors first
             recommended = self.model.get_recommended_layers()
 
-            progress(0.55, desc="🎨 Computing concept vectors...")
-            yield f"✓ Model loaded: {self.model.model_name}\n✓ Engine ready\n\n🎨 Computing concept vectors...\nExtracting 10 concepts at {len(recommended[:3])} layers"
+            progress(0.55, desc="📦 Loading saved concept vectors...")
+            yield f"✓ Model loaded: {self.model.model_name}\n✓ Engine ready\n\n📦 Loading saved vectors from disk..."
 
-            # Extract concepts with progress updates
-            from activation_steering_lab.educational_content import get_concept_pairs
-            all_concepts = []
-            for category, pairs in get_concept_pairs().items():
-                all_concepts.extend(pairs)
+            try:
+                self.library.load_all()
+                num_loaded = len(self.library.list_concepts())
 
-            total_extractions = len(all_concepts) * len(recommended[:3])
-            current = 0
+                if num_loaded > 0:
+                    # Vectors loaded successfully from disk
+                    progress(0.85, desc=f"✓ Loaded {num_loaded} concepts from cache")
+                    yield f"✓ Model loaded\n✓ Engine ready\n✓ Loaded {num_loaded} concepts from cache!\n\n⚡ All vectors loaded instantly from disk"
+                else:
+                    # No saved vectors, extract them
+                    raise FileNotFoundError("No saved vectors found")
 
-            for layer_idx in recommended[:3]:
-                for name, concept_prompt, baseline_prompt in all_concepts:
-                    try:
-                        current += 1
-                        progress_pct = 0.55 + (current / total_extractions) * 0.30
-                        progress(progress_pct, desc=f"🎨 Extracting '{name}' at layer {layer_idx}...")
+            except Exception as e:
+                # Fall back to extracting concepts
+                progress(0.55, desc="🎨 No cache found, extracting concepts...")
+                yield f"✓ Model loaded\n✓ Engine ready\n\n🎨 No saved vectors found, extracting...\nThis will take ~3 minutes (only once)"
 
-                        vector = self.library.compute_concept_vector(
-                            model_wrapper=self.model,
-                            concept_prompt=concept_prompt,
-                            baseline_prompt=baseline_prompt,
-                            layer_idx=layer_idx,
-                            concept_name=name
-                        )
-                        self.library.add_vector(vector)
+                # Extract concepts with progress updates
+                from activation_steering_lab.educational_content import get_concept_pairs
+                all_concepts = []
+                for category, pairs in get_concept_pairs().items():
+                    all_concepts.extend(pairs)
 
-                        yield f"✓ Model ready\n✓ Concepts: {current}/{total_extractions}\n\n🎨 Extracting '{name}' at layer {layer_idx}..."
-                    except Exception as e:
-                        print(f"    Error extracting {name}: {e}")
+                total_extractions = len(all_concepts) * len(recommended[:3])
+                current = 0
+
+                for layer_idx in recommended[:3]:
+                    for name, concept_prompt, baseline_prompt in all_concepts:
+                        try:
+                            current += 1
+                            progress_pct = 0.55 + (current / total_extractions) * 0.30
+                            progress(progress_pct, desc=f"🎨 Extracting '{name}' at layer {layer_idx}...")
+
+                            vector = self.library.compute_concept_vector(
+                                model_wrapper=self.model,
+                                concept_prompt=concept_prompt,
+                                baseline_prompt=baseline_prompt,
+                                layer_idx=layer_idx,
+                                concept_name=name
+                            )
+                            self.library.add_vector(vector)
+
+                            yield f"✓ Model ready\n✓ Concepts: {current}/{total_extractions}\n\n🎨 Extracting '{name}' at layer {layer_idx}..."
+                        except Exception as e:
+                            print(f"    Error extracting {name}: {e}")
 
             progress(0.90, desc="💾 Saving vectors to disk...")
             yield f"✓ Model loaded: {self.model.model_name}\n✓ Concepts extracted: {len(self.library.list_concepts())}\n\n💾 Saving vectors..."
@@ -355,8 +372,6 @@ def create_interface():
                 init_btn = gr.Button("🚀 Initialize Model & Library", variant="primary", size="lg")
                 init_status = gr.Textbox(label="Status", lines=8)
 
-        init_btn.click(fn=app.initialize, outputs=init_status)
-
         # Main tabs
         with gr.Tabs():
             # Tab 1: Educational Layer Viewer
@@ -446,10 +461,17 @@ def create_interface():
                             placeholder="e.g., 'Tell me about the weather'",
                             lines=3
                         )
+
+                        # ONE-CLICK DEMO BUTTON
+                        with gr.Row():
+                            demo_btn = gr.Button("🎯 Load Demo Example", size="sm", variant="secondary")
+
                         steer_concept = gr.Dropdown(
                             label="Concept",
-                            choices=[],
-                            info="Will populate after initialization"
+                            choices=["Click 'Initialize Model & Library' first"],
+                            value="Click 'Initialize Model & Library' first",
+                            info="Will populate after initialization",
+                            interactive=True
                         )
                         steer_layer = gr.Slider(0, 31, value=16, step=1, label="Injection Layer")
                         steer_strength = gr.Slider(0.5, 5.0, value=2.0, step=0.1, label="Injection Strength")
@@ -469,13 +491,8 @@ def create_interface():
 
                         explanation = gr.Markdown("Results will appear here")
 
-                # Update concept dropdown when initialized
-                def update_concepts():
-                    if app.initialized:
-                        return gr.Dropdown(choices=app.get_concept_list())
-                    return gr.Dropdown(choices=[])
-
-                init_btn.click(fn=update_concepts, outputs=steer_concept)
+                # Store reference to update later
+                steer_concept_ref = steer_concept
 
                 generate_btn.click(
                     fn=app.generate_steered,
@@ -497,14 +514,18 @@ def create_interface():
                         with gr.Row():
                             with gr.Column():
                                 layer_prompt = gr.Textbox(label="Prompt", lines=2)
-                                layer_concept = gr.Dropdown(label="Concept", choices=[])
+                                layer_concept = gr.Dropdown(
+                                    label="Concept",
+                                    choices=["Initialize first"],
+                                    value="Initialize first",
+                                    interactive=True
+                                )
                                 layer_strength = gr.Slider(0.5, 5.0, value=2.0, step=0.1, label="Strength")
                                 layer_analyze_btn = gr.Button("Analyze Layers", variant="primary")
 
                             with gr.Column():
                                 layer_results = gr.Markdown("Results will appear here")
 
-                        init_btn.click(fn=update_concepts, outputs=layer_concept)
                         layer_analyze_btn.click(
                             fn=app.analyze_layers,
                             inputs=[layer_prompt, layer_concept, layer_strength],
@@ -520,14 +541,18 @@ def create_interface():
                         with gr.Row():
                             with gr.Column():
                                 strength_prompt = gr.Textbox(label="Prompt", lines=2)
-                                strength_concept = gr.Dropdown(label="Concept", choices=[])
+                                strength_concept = gr.Dropdown(
+                                    label="Concept",
+                                    choices=["Initialize first"],
+                                    value="Initialize first",
+                                    interactive=True
+                                )
                                 strength_layer = gr.Slider(0, 31, value=16, step=1, label="Layer")
                                 strength_test_btn = gr.Button("Test Strengths", variant="primary")
 
                             with gr.Column():
                                 strength_results = gr.Markdown("Results will appear here")
 
-                        init_btn.click(fn=update_concepts, outputs=strength_concept)
                         strength_test_btn.click(
                             fn=app.test_strengths,
                             inputs=[strength_prompt, strength_concept, strength_layer],
@@ -573,6 +598,46 @@ def create_interface():
         with gr.Accordion("💡 Tips & Tricks", open=False):
             tips = get_tips_and_tricks()
             gr.Markdown("\n".join(tips))
+
+        # Demo button handler - pre-fills example values
+        def load_demo_example():
+            """Load a pre-filled example for quick testing (no typing needed!)"""
+            return {
+                steer_prompt: "Tell me about artificial intelligence",
+                steer_concept: "enthusiastic",
+                steer_layer: 16,
+                steer_strength: 2.5
+            }
+
+        demo_btn.click(
+            fn=load_demo_example,
+            outputs=[steer_prompt, steer_concept, steer_layer, steer_strength]
+        )
+
+        # Update all concept dropdowns after initialization
+        def update_all_dropdowns():
+            if app.initialized:
+                concepts = app.get_concept_list()
+                # Return update dictionaries, not new components
+                return [
+                    gr.Dropdown(choices=concepts, value=concepts[0] if concepts else None),
+                    gr.Dropdown(choices=concepts, value=concepts[0] if concepts else None),
+                    gr.Dropdown(choices=concepts, value=concepts[0] if concepts else None)
+                ]
+            return [
+                gr.Dropdown(choices=[]),
+                gr.Dropdown(choices=[]),
+                gr.Dropdown(choices=[])
+            ]
+
+        # Bind init button: chain initialization then update dropdowns
+        init_btn.click(
+            fn=app.initialize,
+            outputs=init_status
+        ).then(
+            fn=update_all_dropdowns,
+            outputs=[steer_concept, layer_concept, strength_concept]
+        )
 
     return demo
 
